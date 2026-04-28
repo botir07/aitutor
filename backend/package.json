@@ -1,0 +1,39 @@
+{
+  "name": "maktab-ai-backend",
+  "version": "1.0.0",
+  "description": "Maktab AI Premium Ta'lim Platformasi Backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "prod": "pm2 start server.js --name maktab-ai",
+    "stop": "pm2 stop maktab-ai",
+    "restart": "pm2 restart maktab-ai",
+    "logs": "pm2 logs maktab-ai"
+  },
+  "keywords": [
+    "education",
+    "ai",
+    "uzbekistan"
+  ],
+  "author": "Maktab AI Team",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "express-rate-limit": "^7.5.1",
+    "express-validator": "^7.3.2",
+    "helmet": "^7.2.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^7.8.9",
+    "morgan": "^1.10.1",
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}
