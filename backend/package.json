@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "seed": "node scripts/seed.js",
     "prod": "pm2 start server.js --name maktab-ai",
     "stop": "pm2 stop maktab-ai",
     "restart": "pm2 restart maktab-ai",
@@ -29,11 +30,10 @@
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^7.8.9",
-    "morgan": "^1.10.1",
-    "multer": "^1.4.5-lts.1",
-    "socket.io": "^4.8.3"
+    "morgan": "^1.10.1"
   },
   "devDependencies": {
+    "mongodb-memory-server": "^11.1.0",
     "nodemon": "^3.0.1"
   }
 }

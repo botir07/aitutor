@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(timeout 5 node server.js)",
+      "Bash(node -c app.js)",
+      "Bash(node --check app.js)",
+      "Bash(node --check api.js)",
+      "Bash(node --check auth-ui.js)",
+      "Bash(where mongod *)",
+      "Bash(sc query *)",
+      "Bash(node scripts/test-e2e.js)",
+      "Bash(findstr :5000)",
+      "Bash(tasklist /FI \"PID eq 7840\")",
+      "PowerShell(Get-Process -Id 7840 -ErrorAction SilentlyContinue)",
+      "PowerShell(Start-Sleep -Seconds 3; $conns = Get-NetTCPConnection -LocalPort 5000 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq 'Listen' }; if \\($conns\\) { Write-Host \"Still listening:\"; $conns | Select-Object LocalAddress, LocalPort, State, OwningProcess | Format-Table } else { Write-Host \"PORT 5000 FREE\" })",
+      "Bash(node server.js)",
+      "Read(//tmp/**)",
+      "Bash(break)",
+      "Bash(curl -s http://localhost:5000/api/health)",
+      "Bash(curl -s http://localhost:5000/api/subjects)",
+      "Bash(curl -s -X POST http://localhost:5000/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"demo@maktab.uz\",\"password\":\"demo1234\"}')"
+    ]
+  }
+}

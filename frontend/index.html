@@ -6,8 +6,9 @@
     <title>Maktab AI - Premium Ta'lim Platformasi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #0b1326; color: #dae2fd; overflow-x: hidden; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #0b1326; }
@@ -22,23 +23,39 @@
         @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .slide-in { animation: slideIn 0.5s ease-out; }
         .bg-grid { background-image: radial-gradient(circle, #31394d 1px, transparent 1px); background-size: 30px 30px; }
+        .loader { border: 3px solid rgba(78, 222, 163, 0.2); border-top-color: #4edea3; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+            user-select: none;
+        }
+        .icon-sm { font-size: 18px; }
+        .icon-md { font-size: 22px; }
+        .icon-lg { font-size: 28px; }
+        .icon-xl { font-size: 36px; }
+        .icon-2xl { font-size: 48px; }
     </style>
 </head>
 <body class="min-h-screen bg-grid">
     <nav class="glass fixed top-0 w-full z-50 flex justify-between items-center px-6 h-16 border-b border-slate-800">
         <div class="flex items-center gap-8">
-            <h1 class="text-2xl font-black gradient-text">🚀 Maktab AI</h1>
-            <div class="hidden md:flex gap-6 text-sm">
-                <a href="#" onclick="showPage('dashboard')" class="text-emerald-400 hover:text-emerald-300 transition">Dashboard</a>
-                <a href="#" onclick="showPage('subjects')" class="text-slate-400 hover:text-emerald-400 transition">Fanlar</a>
-                <a href="#" onclick="showPage('quizzes')" class="text-slate-400 hover:text-emerald-400 transition">Testlar</a>
-                <a href="#" onclick="showPage('grades')" class="text-slate-400 hover:text-emerald-400 transition">Baholar</a>
-                <a href="#" onclick="showPage('ai-chat')" class="text-slate-400 hover:text-emerald-400 transition">AI Chat</a>
+            <a href="#/dashboard" class="flex items-center gap-2 text-2xl font-black gradient-text">
+                <span class="material-symbols-outlined icon-lg">rocket_launch</span>
+                Maktab AI
+            </a>
+            <div class="hidden md:flex gap-1 text-sm">
+                <a href="#/dashboard" data-nav="dashboard" class="px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">dashboard</span>Dashboard</a>
+                <a href="#/subjects" data-nav="subjects" class="px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">library_books</span>Fanlar</a>
+                <a href="#/quizzes" data-nav="quizzes" class="px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">quiz</span>Testlar</a>
+                <a href="#/grades" data-nav="grades" class="px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">analytics</span>Baholar</a>
+                <a href="#/ai-chat" data-nav="ai-chat" class="px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">psychology</span>AI Chat</a>
             </div>
         </div>
         <div class="flex items-center gap-4">
-            <span class="text-emerald-400 text-sm hidden md:block">👋 Azizbek Rahimov</span>
-            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white font-bold">A</div>
+            <span class="text-emerald-400 text-sm hidden md:flex items-center gap-1.5"><span class="material-symbols-outlined icon-sm">waving_hand</span><span data-user-name>...</span></span>
+            <a href="#/profile" class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white font-bold cursor-pointer" data-user-initial>?</a>
+            <button onclick="Auth.logout()" title="Chiqish" class="text-slate-400 hover:text-red-400 transition flex items-center"><span class="material-symbols-outlined icon-md">logout</span></button>
         </div>
     </nav>
 
@@ -47,249 +64,47 @@
             <div class="mb-8 px-4">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-                        <span class="text-2xl">🎓</span>
+                        <span class="material-symbols-outlined icon-lg text-emerald-400">school</span>
                     </div>
                     <div>
                         <h2 class="text-white font-bold">Learning Hub</h2>
                         <p class="text-xs text-slate-400">Premium Ta'lim</p>
                     </div>
                 </div>
-                <button class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-semibold py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/20">
-                    ✨ Yangi test yaratish
-                </button>
             </div>
             <nav class="flex-1 space-y-1">
-                <a href="#" onclick="showPage('dashboard')" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all">📊 Dashboard</a>
-                <a href="#" onclick="showPage('ai-chat')" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all">🤖 AI O'rganish</a>
-                <a href="#" onclick="showPage('quizzes')" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all">📝 Testlar</a>
-                <a href="#" onclick="showPage('grades')" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all">📈 Baholar</a>
-                <a href="#" onclick="showPage('subjects')" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all">📚 Fanlar</a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all">👤 Profil</a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all">👨‍👩‍👧 Ota-onalar</a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all">⚙️ Sozlamalar</a>
+                <a href="#/dashboard" data-nav="dashboard" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">dashboard</span>Dashboard</a>
+                <a href="#/ai-chat" data-nav="ai-chat" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">psychology</span>AI O'rganish</a>
+                <a href="#/quizzes" data-nav="quizzes" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">quiz</span>Testlar</a>
+                <a href="#/grades" data-nav="grades" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">analytics</span>Baholar</a>
+                <a href="#/subjects" data-nav="subjects" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">library_books</span>Fanlar</a>
+                <a href="#/profile" data-nav="profile" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">person</span>Profil</a>
             </nav>
-            <div class="pt-4 border-t border-slate-800 px-4">
-                <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:text-emerald-400 transition-all">❓ Yordam</a>
+            <div class="pt-4 px-4 border-t border-slate-800">
+                <button onclick="Auth.logout()" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all">
+                    <span class="material-symbols-outlined icon-md">logout</span>Chiqish
+                </button>
             </div>
         </aside>
 
         <main class="flex-1 md:ml-64 p-6 pb-24 md:pb-6" id="main-content">
-            <!-- Dynamic Content -->
+            <div class="flex justify-center py-20"><div class="loader"></div></div>
         </main>
     </div>
 
     <nav class="md:hidden glass fixed bottom-0 w-full z-50 flex justify-around items-center px-2 py-3 border-t border-slate-800 rounded-t-2xl">
-        <a href="#" onclick="showPage('dashboard')" class="flex flex-col items-center text-emerald-400"><span class="text-xl">📊</span><span class="text-[10px] font-bold">Dashboard</span></a>
-        <a href="#" onclick="showPage('ai-chat')" class="flex flex-col items-center text-slate-400"><span class="text-xl">🤖</span><span class="text-[10px] font-bold">AI</span></a>
-        <a href="#" onclick="showPage('quizzes')" class="flex flex-col items-center text-slate-400"><span class="text-xl">📝</span><span class="text-[10px] font-bold">Testlar</span></a>
-        <a href="#" onclick="showPage('subjects')" class="flex flex-col items-center text-slate-400"><span class="text-xl">📚</span><span class="text-[10px] font-bold">Fanlar</span></a>
-        <a href="#" class="flex flex-col items-center text-slate-400"><span class="text-xl">👤</span><span class="text-[10px] font-bold">Profil</span></a>
+        <a href="#/dashboard" data-nav="dashboard" class="flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">dashboard</span><span class="text-[10px] font-bold mt-0.5">Dashboard</span></a>
+        <a href="#/ai-chat" data-nav="ai-chat" class="flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">psychology</span><span class="text-[10px] font-bold mt-0.5">AI</span></a>
+        <a href="#/quizzes" data-nav="quizzes" class="flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">quiz</span><span class="text-[10px] font-bold mt-0.5">Testlar</span></a>
+        <a href="#/subjects" data-nav="subjects" class="flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">library_books</span><span class="text-[10px] font-bold mt-0.5">Fanlar</span></a>
+        <a href="#/profile" data-nav="profile" class="flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">person</span><span class="text-[10px] font-bold mt-0.5">Profil</span></a>
     </nav>
 
+    <script src="/js/api.js"></script>
+    <script src="/js/auth-ui.js"></script>
+    <script src="/js/app.js"></script>
     <script>
-        const API = 'http://localhost:5000';
-
-        async function showPage(page) {
-            const main = document.getElementById('main-content');
-            switch(page) {
-                case 'dashboard': await loadDashboard(main); break;
-                case 'subjects': await loadSubjects(main); break;
-                case 'quizzes': await loadQuizzes(main); break;
-                case 'grades': await loadGrades(main); break;
-                case 'ai-chat': await loadAIChat(main); break;
-            }
-        }
-
-        async function loadDashboard(main) {
-            main.innerHTML = `
-                <div class="slide-in space-y-6">
-                    <div>
-                        <h1 class="text-3xl font-bold text-white mb-2">Xush kelibsiz, Azizbek! 👋</h1>
-                        <p class="text-slate-400">Bugun qanday fan o'rganamiz?</p>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div class="glass rounded-2xl p-6 card-hover">
-                            <div class="flex items-center justify-between mb-4">
-                                <span class="text-3xl">⭐</span>
-                                <span class="text-emerald-400 text-sm font-semibold">+0.2</span>
-                            </div>
-                            <h3 class="text-4xl font-bold text-white">4.8</h3>
-                            <p class="text-slate-400 text-sm mt-1">O'rtacha baho</p>
-                            <div class="w-full bg-slate-800 rounded-full h-1.5 mt-3">
-                                <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 96%"></div>
-                            </div>
-                        </div>
-                        <div class="glass rounded-2xl p-6 card-hover">
-                            <div class="flex items-center justify-between mb-4">
-                                <span class="text-3xl">📝</span>
-                                <span class="text-blue-400 text-sm font-semibold">+12</span>
-                            </div>
-                            <h3 class="text-4xl font-bold text-white">142</h3>
-                            <p class="text-slate-400 text-sm mt-1">Testlar soni</p>
-                            <div class="w-full bg-slate-800 rounded-full h-1.5 mt-3">
-                                <div class="bg-blue-500 h-1.5 rounded-full" style="width: 85%"></div>
-                            </div>
-                        </div>
-                        <div class="glass rounded-2xl p-6 card-hover">
-                            <div class="flex items-center justify-between mb-4">
-                                <span class="text-3xl">⏱️</span>
-                                <span class="text-amber-400 text-sm font-semibold">Bu hafta</span>
-                            </div>
-                            <h3 class="text-4xl font-bold text-white">24s</h3>
-                            <p class="text-slate-400 text-sm mt-1">O'qish vaqti</p>
-                            <div class="w-full bg-slate-800 rounded-full h-1.5 mt-3">
-                                <div class="bg-amber-500 h-1.5 rounded-full" style="width: 75%"></div>
-                            </div>
-                        </div>
-                        <div class="glass rounded-2xl p-6 card-hover">
-                            <div class="flex items-center justify-between mb-4">
-                                <span class="text-3xl">🏆</span>
-                                <span class="text-green-400 text-sm font-semibold pulse">Top 5%</span>
-                            </div>
-                            <h3 class="text-4xl font-bold text-white">7 kun</h3>
-                            <p class="text-slate-400 text-sm mt-1">Ketma-ket</p>
-                            <div class="w-full bg-slate-800 rounded-full h-1.5 mt-3">
-                                <div class="bg-green-500 h-1.5 rounded-full" style="width: 70%"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        async function loadSubjects(main) {
-            const res = await fetch(API + '/api/subjects');
-            const subjects = await res.json();
-            main.innerHTML = `
-                <div class="slide-in space-y-6">
-                    <h1 class="text-3xl font-bold text-white mb-6">📚 Fanlar</h1>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        ${subjects.map(s => `
-                            <div class="glass rounded-2xl p-6 card-hover">
-                                <div class="flex items-center justify-between mb-4">
-                                    <div class="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center text-2xl">${s.icon}</div>
-                                    <span class="px-3 py-1 rounded-full bg-slate-800 text-xs text-slate-400">${s.progress}%</span>
-                                </div>
-                                <h3 class="text-xl font-bold text-white mb-2">${s.name}</h3>
-                                <p class="text-slate-400 text-sm mb-4">${s.lessons} darslar</p>
-                                <div class="w-full bg-slate-800 rounded-full h-2">
-                                    <div class="h-2 rounded-full bg-gradient-to-r ${s.gradient}" style="width: ${s.progress}%"></div>
-                                </div>
-                                <button class="w-full mt-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm transition-all">
-                                    Davom ettirish →
-                                </button>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>`;
-        }
-
-        async function loadQuizzes(main) {
-            const res = await fetch(API + '/api/quizzes');
-            const quizzes = await res.json();
-            main.innerHTML = `
-                <div class="slide-in space-y-6">
-                    <h1 class="text-3xl font-bold text-white mb-6">📝 Testlar</h1>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        ${quizzes.map(q => `
-                            <div class="glass rounded-2xl p-6 card-hover">
-                                <div class="flex items-center gap-3 mb-4">
-                                    <div class="w-3 h-3 rounded-full" style="background: ${q.color}"></div>
-                                    <span class="text-sm text-slate-400">${q.subject}</span>
-                                    <span class="ml-auto px-3 py-1 rounded-full bg-slate-800 text-xs text-slate-400">${q.difficulty}</span>
-                                </div>
-                                <h3 class="text-lg font-bold text-white mb-3">${q.title}</h3>
-                                <div class="flex items-center gap-4 text-sm text-slate-400 mb-4">
-                                    <span>📋 ${q.questions} savol</span>
-                                    <span>⏱️ ${q.time}</span>
-                                </div>
-                                <button class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-semibold transition-all">
-                                    Testni boshlash 🚀
-                                </button>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>`;
-        }
-
-        async function loadGrades(main) {
-            const res = await fetch(API + '/api/grades');
-            const grades = await res.json();
-            main.innerHTML = `
-                <div class="slide-in space-y-6">
-                    <h1 class="text-3xl font-bold text-white mb-6">📈 Baholar</h1>
-                    <div class="glass rounded-2xl overflow-hidden">
-                        <table class="w-full">
-                            <thead class="bg-slate-900/50">
-                                <tr>
-                                    <th class="p-4 text-left text-sm text-slate-400">Sana</th>
-                                    <th class="p-4 text-left text-sm text-slate-400">Fan</th>
-                                    <th class="p-4 text-left text-sm text-slate-400">Mavzu</th>
-                                    <th class="p-4 text-left text-sm text-slate-400">O'qituvchi</th>
-                                    <th class="p-4 text-center text-sm text-slate-400">Baho</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${grades.map(g => `
-                                    <tr class="border-t border-slate-800 hover:bg-slate-800/30 transition">
-                                        <td class="p-4 text-sm text-slate-400">${g.date}</td>
-                                        <td class="p-4 font-semibold text-white">${g.subject}</td>
-                                        <td class="p-4 text-sm text-slate-400">${g.topic}</td>
-                                        <td class="p-4 text-sm text-slate-400">${g.teacher}</td>
-                                        <td class="p-4 text-center">
-                                            <span class="inline-flex items-center justify-center w-10 h-10 rounded-full font-bold text-white" style="background: ${g.color}20; border: 2px solid ${g.color}">${g.grade}</span>
-                                        </td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>`;
-        }
-
-        async function loadAIChat(main) {
-            main.innerHTML = `
-                <div class="slide-in h-[calc(100vh-200px)] flex flex-col">
-                    <h1 class="text-3xl font-bold text-white mb-6">🤖 AI Mentor</h1>
-                    <div class="glass rounded-2xl flex-1 flex flex-col overflow-hidden">
-                        <div class="p-4 border-b border-slate-800 flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-xl">🤖</div>
-                            <div>
-                                <h3 class="text-white font-semibold">Maktab AI Mentor</h3>
-                                <span class="text-emerald-400 text-sm flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-400 pulse"></span> Online</span>
-                            </div>
-                        </div>
-                        <div class="flex-1 overflow-y-auto p-6 space-y-4" id="chat-messages">
-                            <div class="flex gap-3">
-                                <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-sm">🤖</div>
-                                <div class="glass rounded-2xl rounded-tl-sm p-4 max-w-[70%]">
-                                    <p class="text-white text-sm">Salom! Men sizning AI o'qituvchingizman. Bugun qaysi mavzuda yordam kerak?</p>
-                                </div>
-                            </div>
-                            <div class="flex gap-3 flex-row-reverse">
-                                <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-sm">👤</div>
-                                <div class="bg-blue-500/20 border border-blue-500/30 rounded-2xl rounded-tr-sm p-4 max-w-[70%]">
-                                    <p class="text-white text-sm">Kvadrat tenglamalarni tushuntirib bera olasizmi?</p>
-                                </div>
-                            </div>
-                            <div class="flex gap-3">
-                                <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-sm">🤖</div>
-                                <div class="glass rounded-2xl rounded-tl-sm p-4 max-w-[70%]">
-                                    <p class="text-white text-sm">Albatta! Kvadrat tenglama bu ax² + bx + c = 0 ko'rinishidagi tenglamadir. Buni yechish uchun diskriminant formulasi yoki Vieta teoremasidan foydalanishimiz mumkin. Qaysi birini ko'rib chiqamiz?</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="p-4 border-t border-slate-800">
-                            <div class="flex items-center gap-3">
-                                <input type="text" placeholder="Xabaringizni yozing..." class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none text-sm">
-                                <button class="px-4 py-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl transition-all">📤</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-        }
-
-        // Dastlabki yuklash
-        showPage('dashboard');
+      document.addEventListener('DOMContentLoaded', () => App.init());
     </script>
 </body>
 </html>
