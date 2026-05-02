@@ -5,22 +5,31 @@ const { body, validationResult } = require('express-validator');
 const Message = require('../models/Message');
 const { protect } = require('../middleware/auth');
 const requireDb = require('../middleware/requireDb');
+const { resolveOpenAICompatConfig } = require('../utils/aiProvider');
 
 router.use(requireDb);
 
-// Foydalanuvchi bilan suhbat tarixi
+// Foydalanuvchi bilan suhbat tarixi (+ o'z ID bo'yicha AI mentor xabarlari)
 router.get('/:userId', protect, async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.userId)) {
       return res.status(400).json({ success: false, message: 'Foydalanuvchi ID noto\'g\'ri' });
     }
 
-    const messages = await Message.find({
-      $or: [
-        { sender: req.user.id, receiver: req.params.userId },
-        { sender: req.params.userId, receiver: req.user.id }
-      ]
-    })
+    const peerId = req.params.userId;
+    const selfId = req.user.id.toString();
+    const or = [
+      { sender: req.user.id, receiver: peerId },
+      { sender: peerId, receiver: req.user.id }
+    ];
+    if (peerId === selfId) {
+      or.push({
+        sender: req.user.id,
+        type: { $in: ['ai_chat', 'ai_response'] }
+      });
+    }
+
+    const messages = await Message.find({ $or: or })
       .populate('sender', 'firstName lastName avatar')
       .sort('createdAt')
       .limit(100);
@@ -35,7 +44,7 @@ router.get('/:userId', protect, async (req, res, next) => {
   }
 });
 
-// AI mentorga xabar — hozircha oddiy "echo + tip" (haqiqiy AI integratsiya keyinroq)
+// AI mentorga xabar (GROQ_API_KEY yoki OPENAI_API_KEY bo'lsa LLM, bo'lmasa qoida javobi)
 router.post(
   '/ai',
   protect,
@@ -53,7 +62,7 @@ router.post(
         type: 'ai_chat'
       });
 
-      const reply = generateAIReply(req.body.content);
+      const reply = await generateAIReply(req.body.content);
 
       const aiMsg = await Message.create({
         sender: req.user.id,
@@ -74,7 +83,7 @@ router.post(
   }
 );
 
-function generateAIReply(input) {
+function ruleBasedReply(input) {
   const text = (input || '').toLowerCase();
   if (text.includes('salom') || text.includes('hi') || text.includes('hello')) {
     return 'Salom! Bugun qanday mavzuda yordam kerak?';
@@ -86,6 +95,52 @@ function generateAIReply(input) {
     return 'Fizika qiziqarli fan! Mexanika, elektr, optika — qaysi bo\'lim sizga kerak?';
   }
   return 'Tushundim. Bu mavzuni qadamma-qadam tushuntirib beraman. Iltimos, savolingizni aniqroq ifodalang.';
+}
+
+async function generateAIReply(input) {
+  const { key, base, model } = resolveOpenAICompatConfig();
+  if (!key) {
+    return ruleBasedReply(input);
+  }
+
+  try {
+    const res = await fetch(`${base}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: 'system',
+            content:
+              'Siz O\'zbekiston maktab o\'quvchilariga yordam beruvchi AI mentorsiz. ' +
+              'Javoblarni o\'zbek tilida, qisqa va tushunarli yozing. ' +
+              'Agar savol fan bo\'yicha bo\'lmasa, xushmuomalalik bilan yo\'naltiring.'
+          },
+          { role: 'user', content: String(input).slice(0, 4000) }
+        ],
+        max_tokens: 900,
+        temperature: 0.55
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => res.statusText);
+      console.warn('[chat] LLM javob xato:', res.status, errText.slice(0, 200));
+      return ruleBasedReply(input);
+    }
+
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content?.trim();
+    if (text) return text;
+  } catch (err) {
+    console.warn('[chat] LLM so\'rov xato:', err.message);
+  }
+
+  return ruleBasedReply(input);
 }
 
 module.exports = router;

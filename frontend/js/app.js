@@ -36,6 +36,16 @@ const App = {
     document.querySelectorAll('.teacher-nav-only').forEach(el => {
       el.classList.toggle('hidden', !isStaff);
     });
+
+    const showStudentHw = user.role === 'student';
+    document.querySelectorAll('.student-nav-only').forEach(el => {
+      el.classList.toggle('hidden', !showStudentHw);
+    });
+
+    const hideStudentNav = user.role === 'teacher';
+    document.querySelectorAll('.student-only-nav').forEach(el => {
+      el.classList.toggle('hidden', hideStudentNav);
+    });
   },
 
   async showPage(page) {
@@ -61,6 +71,10 @@ const App = {
         case 'quizzes':   await Pages.quizzes(main); break;
         case 'grades':    await Pages.grades(main); break;
         case 'ai-chat':   await Pages.aiChat(main); break;
+        case 'assignments': await Pages.assignments(main); break;
+        case 'teacher':
+          window.location.replace('/teacher.html');
+          break;
         case 'profile':   await Pages.profile(main); break;
         default:          await Pages.dashboard(main);
       }
@@ -330,13 +344,125 @@ const Pages = {
       </div>`;
   },
 
+  async assignments(main) {
+    const user = Auth.getUser() || {};
+    if (user.role !== 'student') {
+      main.innerHTML = `
+        <div class="glass rounded-2xl p-8 text-center text-slate-400">
+          Vazifalar ro'yxati faqat <strong class="text-white">o'quvchi</strong> akkaunti uchun.
+          O'qituvchilar vazifalarni <a href="/teacher.html" class="text-emerald-400 underline">o'qituvchi panelida</a> boshqaradi.
+        </div>`;
+      return;
+    }
+
+    main.innerHTML = `<div class="slide-in space-y-4"><div class="flex justify-center py-16"><div class="loader"></div></div></div>`;
+    const res = await API.assignmentsList();
+    const items = res.data || [];
+
+    const cards = items.length === 0
+      ? `<div class="glass rounded-2xl p-10 text-center text-slate-500">Hozircha topshiriq yo'q.</div>`
+      : items.map((a) => {
+        const st = a.subject || {};
+        const sub = a.mySubmission;
+        const due = new Date(a.dueDate);
+        let statusLine = '';
+        if (sub && sub.score != null) {
+          statusLine = `<p class="text-emerald-400 text-sm mt-2">Baho: <strong>${sub.score}</strong> / ${a.maxScore}${sub.feedback ? ` — ${escapeHtml(sub.feedback)}` : ''}</p>`;
+        } else if (sub && sub.submittedAt) {
+          statusLine = `<p class="text-amber-400 text-sm mt-2">Javob yuborildi — tekshirilmoqda.</p>`;
+        }
+        return `
+          <div class="glass rounded-2xl p-5 mb-4 border border-slate-800" data-assignment-card="${a._id}">
+            <div class="flex flex-wrap justify-between gap-2">
+              <h3 class="text-white font-bold">${escapeHtml(a.title)}</h3>
+              <span class="text-xs text-slate-500">${due.toLocaleString('uz-UZ')}</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">${escapeHtml(st.nameUz || st.name || '')} · max ${a.maxScore} ball</p>
+            <p class="text-sm text-slate-400 mt-2 whitespace-pre-wrap">${escapeHtml(a.description || '')}</p>
+            ${statusLine}
+            <textarea id="hw-ta-${a._id}" rows="4" placeholder="Javobingizni yozing..."
+              class="mt-3 w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white text-sm focus:border-emerald-500 outline-none"></textarea>
+            <button type="button" class="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold btn-hw-submit" data-hw-id="${a._id}">
+              ${sub && sub.submittedAt ? 'Qayta yuborish' : 'Topshirish'}
+            </button>
+            <p class="text-xs text-slate-500 mt-2 hw-msg-${a._id}"></p>
+          </div>`;
+      }).join('');
+
+    main.innerHTML = `
+      <div class="slide-in space-y-4">
+        <h1 class="text-3xl font-bold text-white flex items-center gap-3">
+          ${icon('assignment', 'icon-xl', 'text-emerald-400')}
+          Mening vazifalarim
+        </h1>
+        ${cards}
+      </div>`;
+
+    items.forEach((a) => {
+      const sub = a.mySubmission;
+      const el = document.getElementById(`hw-ta-${a._id}`);
+      if (el && sub && sub.content) el.value = sub.content;
+    });
+
+    main.querySelectorAll('.btn-hw-submit').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-hw-id');
+        const ta = document.getElementById(`hw-ta-${id}`);
+        const msg = main.querySelector(`.hw-msg-${id}`);
+        const text = (ta && ta.value || '').trim();
+        if (!text) {
+          if (msg) msg.textContent = 'Javob bo\'sh bo\'lmasligi kerak.';
+          return;
+        }
+        if (msg) msg.textContent = 'Yuborilmoqda...';
+        btn.disabled = true;
+        try {
+          await API.submitAssignment(id, text);
+          if (msg) msg.textContent = 'Yuborildi ✓';
+          await Pages.assignments(main);
+        } catch (err) {
+          if (msg) msg.textContent = err.message || 'Xato';
+          btn.disabled = false;
+        }
+      });
+    });
+  },
+
   async aiChat(main) {
+    const user = Auth.getUser() || {};
+    const uid = String(user.id || '');
+    let history = [];
+    try {
+      if (uid) {
+        const r = await API.chatHistory(uid);
+        history = r.data || [];
+      }
+    } catch { /* offline / bo'sh */ }
+
+    const historyHtml = history.map((m) => {
+      if (m.type === 'ai_response') return aiBubble(m.content);
+      if (m.type === 'ai_chat') return userBubble(m.content);
+      const sid = String((m.sender && (m.sender._id || m.sender.id)) || m.sender || '');
+      if (sid === uid) return userBubble(m.content);
+      return incomingBubble(m.content);
+    }).join('');
+
+    const intro = history.length === 0
+      ? `${aiBubble("Salom! Men sizning AI o'qituvchingizman. Bugun qaysi mavzuda yordam kerak? Matematika, fizika, biologiya yoki boshqa fan bo'yicha savol berishingiz mumkin.")}
+            <div class="flex flex-wrap gap-2 ml-11">
+              ${suggestionChip('Matematikadan yordam')}
+              ${suggestionChip('Fizika qonunlari')}
+              ${suggestionChip('Hujayra tuzilishi')}
+            </div>`
+      : '';
+
     main.innerHTML = `
       <div class="slide-in h-[calc(100vh-160px)] md:h-[calc(100vh-120px)] flex flex-col">
         <h1 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
           ${icon('psychology', 'icon-xl', 'text-emerald-400')}
           AI Mentor
         </h1>
+        <p class="text-xs text-slate-500 mb-2">Kalit so'z: .env da GROQ_API_KEY yoki OPENAI_API_KEY — bo'lmasa oddiy qoida javob.</p>
         <div class="glass rounded-2xl flex-1 flex flex-col overflow-hidden">
           <div class="p-4 border-b border-slate-800 flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
@@ -350,12 +476,8 @@ const Pages = {
             </div>
           </div>
           <div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar" id="chat-messages">
-            ${aiBubble("Salom! Men sizning AI o'qituvchingizman. Bugun qaysi mavzuda yordam kerak? Matematika, fizika, biologiya yoki boshqa fan bo'yicha savol berishingiz mumkin.")}
-            <div class="flex flex-wrap gap-2 ml-11">
-              ${suggestionChip('Matematikadan yordam')}
-              ${suggestionChip('Fizika qonunlari')}
-              ${suggestionChip('Hujayra tuzilishi')}
-            </div>
+            ${historyHtml}
+            ${intro}
           </div>
           <div class="p-4 border-t border-slate-800">
             <form id="chat-form" class="flex items-center gap-3">
@@ -369,6 +491,9 @@ const Pages = {
           </div>
         </div>
       </div>`;
+
+    const box = document.getElementById('chat-messages');
+    if (box) box.scrollTop = box.scrollHeight;
 
     document.getElementById('chat-form').addEventListener('submit', ChatUI.send);
     document.querySelectorAll('[data-chip]').forEach(el => {
@@ -611,6 +736,15 @@ const ChatUI = {
   }
 };
 window.ChatUI = ChatUI;
+
+function incomingBubble(text) {
+  return `<div class="flex gap-3">
+    <div class="w-8 h-8 rounded-full bg-slate-600/40 flex items-center justify-center flex-shrink-0 text-xs text-slate-300 font-bold">?</div>
+    <div class="glass rounded-2xl rounded-tl-sm p-4 max-w-[70%]">
+      <p class="text-white text-sm whitespace-pre-wrap">${escapeHtml(text)}</p>
+    </div>
+  </div>`;
+}
 
 function userBubble(text) {
   const user = Auth.getUser() || {};

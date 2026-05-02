@@ -87,6 +87,13 @@ const API = {
 
   // Chat
   sendAI: (content) => request('/api/chat/ai', { method: 'POST', body: { content } }),
+  chatHistory: (userId) => request(`/api/chat/${userId}`),
+
+  // Vazifalar (o'quvchi)
+  assignmentsList: () => request('/api/assignments'),
+  assignmentDetail: (id) => request(`/api/assignments/${id}`),
+  submitAssignment: (id, content) =>
+    request(`/api/assignments/${id}/submit`, { method: 'POST', body: { content } }),
 
   // Health
   health: () => request('/api/health'),
@@ -137,8 +144,13 @@ const API = {
           score: Number(body.score),
           feedback: body.feedback || ''
         }
-      })
-  }
+      }),
+    generateQuizAI: (body) =>
+      request('/api/teacher/quizzes/generate-ai', { method: 'POST', body }),
+    myQuizzes: () => request('/api/teacher/quizzes')
+  },
+
+  createQuiz: (body) => request('/api/quizzes', { method: 'POST', body })
 };
 
 window.API = API;

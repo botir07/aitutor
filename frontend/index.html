@@ -35,6 +35,7 @@
         .icon-lg { font-size: 28px; }
         .icon-xl { font-size: 36px; }
         .icon-2xl { font-size: 48px; }
+        .tab-active { color: #4edea3 !important; border-bottom: 2px solid #4edea3; }
     </style>
 </head>
 <body class="min-h-screen bg-grid">
@@ -48,9 +49,10 @@
                 <a href="#/dashboard" data-nav="dashboard" class="px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">dashboard</span>Dashboard</a>
                 <a href="#/subjects" data-nav="subjects" class="px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">library_books</span>Fanlar</a>
                 <a href="#/quizzes" data-nav="quizzes" class="px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">quiz</span>Testlar</a>
-                <a href="#/grades" data-nav="grades" class="px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">analytics</span>Baholar</a>
-                <a href="#/ai-chat" data-nav="ai-chat" class="px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">psychology</span>AI Chat</a>
-                <a href="/teacher.html" class="teacher-nav-only hidden px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">school</span>O'qituvchi</a>
+                <a href="#/grades" data-nav="grades" class="student-only-nav px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">analytics</span>Baholar</a>
+                <a href="#/assignments" data-nav="assignments" class="student-nav-only hidden student-only-nav px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">assignment</span>Vazifalar</a>
+                <a href="#/ai-chat" data-nav="ai-chat" class="student-only-nav px-3 py-2 rounded-lg flex items-center gap-2 text-slate-400 hover:text-emerald-400 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">psychology</span>AI Chat</a>
+                <a href="/teacher.html" class="teacher-nav-only hidden px-3 py-2 rounded-lg flex items-center gap-2 text-amber-400/90 hover:text-amber-300 hover:bg-slate-800/40 transition"><span class="material-symbols-outlined icon-sm">school</span>Panel</a>
             </div>
         </div>
         <div class="flex items-center gap-4">
@@ -75,9 +77,10 @@
             </div>
             <nav class="flex-1 space-y-1">
                 <a href="#/dashboard" data-nav="dashboard" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">dashboard</span>Dashboard</a>
-                <a href="#/ai-chat" data-nav="ai-chat" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">psychology</span>AI O'rganish</a>
+                <a href="#/ai-chat" data-nav="ai-chat" class="student-only-nav flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">psychology</span>AI O'rganish</a>
                 <a href="#/quizzes" data-nav="quizzes" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">quiz</span>Testlar</a>
-                <a href="#/grades" data-nav="grades" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">analytics</span>Baholar</a>
+                <a href="#/grades" data-nav="grades" class="student-only-nav flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">analytics</span>Baholar</a>
+                <a href="#/assignments" data-nav="assignments" class="student-nav-only hidden student-only-nav flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">assignment</span>Vazifalar</a>
                 <a href="#/subjects" data-nav="subjects" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">library_books</span>Fanlar</a>
                 <a href="#/profile" data-nav="profile" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800/50 hover:text-emerald-400 transition-all"><span class="material-symbols-outlined icon-md">person</span>Profil</a>
                 <a href="/teacher.html" class="teacher-nav-only hidden flex items-center gap-3 px-4 py-3 rounded-xl text-amber-400/90 hover:bg-amber-500/10 hover:text-amber-300 transition-all border border-amber-500/20"><span class="material-symbols-outlined icon-md">dashboard_customize</span>O'qituvchi paneli</a>
@@ -96,8 +99,9 @@
 
     <nav class="md:hidden glass fixed bottom-0 w-full z-50 flex justify-around items-center px-2 py-3 border-t border-slate-800 rounded-t-2xl">
         <a href="#/dashboard" data-nav="dashboard" class="flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">dashboard</span><span class="text-[10px] font-bold mt-0.5">Dashboard</span></a>
-        <a href="#/ai-chat" data-nav="ai-chat" class="flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">psychology</span><span class="text-[10px] font-bold mt-0.5">AI</span></a>
+        <a href="#/ai-chat" data-nav="ai-chat" class="student-only-nav flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">psychology</span><span class="text-[10px] font-bold mt-0.5">AI</span></a>
         <a href="#/quizzes" data-nav="quizzes" class="flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">quiz</span><span class="text-[10px] font-bold mt-0.5">Testlar</span></a>
+        <a href="#/assignments" data-nav="assignments" class="student-nav-only hidden student-only-nav flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">assignment</span><span class="text-[10px] font-bold mt-0.5">Vazifa</span></a>
         <a href="#/subjects" data-nav="subjects" class="flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">library_books</span><span class="text-[10px] font-bold mt-0.5">Fanlar</span></a>
         <a href="#/profile" data-nav="profile" class="flex flex-col items-center text-slate-400"><span class="material-symbols-outlined icon-md">person</span><span class="text-[10px] font-bold mt-0.5">Profil</span></a>
     </nav>

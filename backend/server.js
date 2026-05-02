@@ -17,6 +17,7 @@ const subjectRoutes = require('./routes/subjects');
 const quizRoutes = require('./routes/quizzes');
 const gradeRoutes = require('./routes/grades');
 const chatRoutes = require('./routes/chat');
+const assignmentRoutes = require('./routes/assignments');
 const teacherRoutes = require('./routes/teacher');
 
 const app = express();
@@ -71,6 +72,7 @@ app.use('/api/subjects', subjectRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/grades', gradeRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/assignments', assignmentRoutes);
 app.use('/api/teacher', teacherRoutes);
 
 app.use(express.static(path.join(__dirname, '../frontend')));

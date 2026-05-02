@@ -6,6 +6,10 @@ const submissionSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  content: {
+    type: String,
+    maxlength: 8000
+  },
   score: {
     type: Number,
     min: 0

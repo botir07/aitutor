@@ -6,8 +6,10 @@ const Subject = require('../models/Subject');
 const Grade = require('../models/Grade');
 const Attendance = require('../models/Attendance');
 const Assignment = require('../models/Assignment');
+const Quiz = require('../models/Quiz');
 const { protect, authorize } = require('../middleware/auth');
 const requireDb = require('../middleware/requireDb');
+const { resolveOpenAICompatConfig } = require('../utils/aiProvider');
 
 const router = express.Router();
 
@@ -426,6 +428,189 @@ router.put(
         .populate('submissions.student', 'firstName lastName email');
 
       res.json({ success: true, data: fresh });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
+async function generateQuizDraftWithAI({ subjectName, topic, numQuestions, difficulty }) {
+  const { key, base, model, provider } = resolveOpenAICompatConfig();
+  if (!key) {
+    const e = new Error('NO_KEY');
+    e.code = 'NO_KEY';
+    throw e;
+  }
+  const n = Math.min(Math.max(parseInt(numQuestions, 10) || 5, 3), 15);
+  const diff = ['easy', 'medium', 'hard'].includes(difficulty) ? difficulty : 'medium';
+
+  const system = `Siz O'zbekiston maktabi uchun test tuzuvchi ekspertsiz. Faqat bitta JSON obyekt qaytaring, boshqa matn yoki markdown yo'q.
+Format:
+{"title":"string","description":"string","questions":[{"text":"string","difficulty":"easy|medium|hard","points":1,"explanation":"string","options":[{"text":"string","isCorrect":boolean}]}]}
+Qoidalar: har bir savolda aynan 4 ta variant; faqat bittasida "isCorrect": true. Savollar o'zbek tilida.`;
+
+  const userMsg = `Fan: "${subjectName}". Mavzu: "${topic}". Savollar soni: ${n}. Qiyinlik: ${diff}.`;
+
+  const body = {
+    model,
+    messages: [{ role: 'system', content: system }, { role: 'user', content: userMsg }],
+    max_tokens: 4500,
+    temperature: 0.4
+  };
+  if (
+    provider === 'groq' ||
+    String(model).includes('gpt-4o') ||
+    String(model).includes('gpt-3.5-turbo')
+  ) {
+    body.response_format = { type: 'json_object' };
+  }
+
+  const res = await fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`AI xizmati: ${res.status} — ${t.slice(0, 180)}`);
+  }
+
+  const data = await res.json();
+  const raw = data.choices?.[0]?.message?.content;
+  if (!raw) throw new Error('AI javob bo\'sh');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('JSON tahlil qilinmadi');
+    parsed = JSON.parse(m[0]);
+  }
+
+  if (!parsed.title || !Array.isArray(parsed.questions)) {
+    throw new Error('AI noto\'g\'ri format qaytardi');
+  }
+
+  const questions = [];
+  for (const q of parsed.questions.slice(0, n)) {
+    if (!q || !q.text || !Array.isArray(q.options)) continue;
+    const opts = q.options
+      .filter(o => o && String(o.text || '').trim())
+      .slice(0, 4)
+      .map(o => ({ text: String(o.text).trim().slice(0, 500), isCorrect: !!o.isCorrect }));
+
+    while (opts.length < 4) opts.push({ text: `Variant ${opts.length + 1}`, isCorrect: false });
+
+    if (opts.filter(o => o.isCorrect).length !== 1) {
+      opts.forEach((o, i) => { o.isCorrect = i === 0; });
+    }
+
+    questions.push({
+      text: String(q.text).trim().slice(0, 1200),
+      difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : diff,
+      points: Math.min(Math.max(parseInt(q.points, 10) || 1, 1), 10),
+      explanation: q.explanation ? String(q.explanation).trim().slice(0, 800) : '',
+      options: opts
+    });
+  }
+
+  if (questions.length < 3) throw new Error('Kamida 3 ta savol yaratilmadi');
+
+  return {
+    title: String(parsed.title).trim().slice(0, 200),
+    description: parsed.description ? String(parsed.description).trim().slice(0, 1500) : '',
+    difficulty: diff,
+    questions
+  };
+}
+
+// Mening yaratgan testlarim (savollar yuklanmaydi — faqat soni)
+router.get('/quizzes', async (req, res, next) => {
+  try {
+    const filter = req.user.role === 'admin' ? {} : { createdBy: req.user._id };
+    const rows = await Quiz.aggregate([
+      { $match: filter },
+      { $sort: { updatedAt: -1 } },
+      { $limit: 100 },
+      {
+        $project: {
+          title: 1,
+          description: 1,
+          subject: 1,
+          isActive: 1,
+          difficulty: 1,
+          timeLimit: 1,
+          passingScore: 1,
+          maxAttempts: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          questionCount: { $size: { $ifNull: ['$questions', []] } }
+        }
+      }
+    ]);
+    const subIds = [...new Set(rows.map((r) => r.subject).filter(Boolean))];
+    const subjects = await Subject.find({ _id: { $in: subIds } }).select('name nameUz').lean();
+    const subMap = Object.fromEntries(subjects.map((s) => [String(s._id), s]));
+    const data = rows.map((r) => ({
+      ...r,
+      subject: subMap[String(r.subject)] || r.subject
+    }));
+
+    res.json({ success: true, count: data.length, data });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// AI yordamida test loyihasi (saqlanmagan — frontend tahrir qilib POST /api/quizzes qiladi)
+router.post(
+  '/quizzes/generate-ai',
+  [
+    body('subjectId').isMongoId().withMessage('Fan tanlang'),
+    body('topic').trim().notEmpty().isLength({ max: 400 }).withMessage('Mavzu kiriting'),
+    body('numQuestions').optional().isInt({ min: 3, max: 15 }),
+    body('difficulty').optional().isIn(['easy', 'medium', 'hard'])
+  ],
+  handleValidation,
+  async (req, res, next) => {
+    try {
+      const subject = await Subject.findById(req.body.subjectId).select('name nameUz');
+      if (!subject) {
+        return res.status(400).json({ success: false, message: 'Fan topilmadi' });
+      }
+
+      const subjectName = subject.nameUz || subject.name;
+      const numQuestions = req.body.numQuestions != null ? req.body.numQuestions : 5;
+      const difficulty = req.body.difficulty || 'medium';
+
+      let draft;
+      try {
+        draft = await generateQuizDraftWithAI({
+          subjectName,
+          topic: req.body.topic,
+          numQuestions,
+          difficulty
+        });
+      } catch (e) {
+        if (e.code === 'NO_KEY') {
+          return res.status(503).json({
+            success: false,
+            message:
+              'AI test uchun GROQ_API_KEY yoki OPENAI_API_KEY sozlanmagan. .env faylga kalit qo\'shing.'
+          });
+        }
+        return res.status(502).json({ success: false, message: e.message || 'AI xato' });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          ...draft,
+          subjectId: req.body.subjectId
+        }
+      });
     } catch (err) {
       next(err);
     }

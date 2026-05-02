@@ -100,6 +100,10 @@ const AuthUI = {
       const res = await API.login(data.email, data.password);
       Auth.setToken(res.token);
       Auth.setUser(res.user);
+      if (res.user && ['teacher', 'admin'].includes(res.user.role)) {
+        window.location.href = '/teacher.html';
+        return;
+      }
       window.location.reload();
     } catch (err) {
       status.textContent = err.message;
@@ -117,6 +121,10 @@ const AuthUI = {
       const res = await API.register(data);
       Auth.setToken(res.token);
       Auth.setUser(res.user);
+      if (res.user && ['teacher', 'admin'].includes(res.user.role)) {
+        window.location.href = '/teacher.html';
+        return;
+      }
       window.location.reload();
     } catch (err) {
       status.textContent = err.message;
