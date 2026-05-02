@@ -6,6 +6,10 @@ const gradeSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  teacher: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   subject: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Subject',
@@ -17,7 +21,7 @@ const gradeSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['quiz', 'exam', 'homework', 'participation'],
+    enum: ['quiz', 'exam', 'homework', 'participation', 'baholash'],
     default: 'quiz'
   },
   score: {
@@ -37,6 +41,10 @@ const gradeSchema = new mongoose.Schema({
     default: 100
   },
   feedback: String,
+  comment: {
+    type: String,
+    maxlength: 2000
+  },
   gradedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

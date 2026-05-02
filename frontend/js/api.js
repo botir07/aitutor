@@ -89,7 +89,56 @@ const API = {
   sendAI: (content) => request('/api/chat/ai', { method: 'POST', body: { content } }),
 
   // Health
-  health: () => request('/api/health')
+  health: () => request('/api/health'),
+
+  // O'qituvchi paneli (faqat role: teacher | admin)
+  teacher: {
+    dashboard: () => request('/api/teacher/dashboard'),
+    students: (q) => {
+      const qs = q ? `?q=${encodeURIComponent(q)}` : '';
+      return request(`/api/teacher/students${qs}`);
+    },
+    saveAttendance: (date, records) =>
+      request('/api/teacher/attendance', { method: 'POST', body: { date, records } }),
+    attendance: (params = {}) => {
+      const pairs = Object.entries(params).filter(([, v]) => v != null && v !== '');
+      const qs = pairs.length ? `?${new URLSearchParams(pairs).toString()}` : '';
+      return request(`/api/teacher/attendance${qs}`);
+    },
+    attendanceStats: (days = 30) => request(`/api/teacher/attendance/stats?days=${days}`),
+    postGrade: (body) =>
+      request('/api/teacher/grades', {
+        method: 'POST',
+        body: {
+          studentId: body.studentId,
+          subjectId: body.subjectId,
+          score: Number(body.score),
+          type: body.type || 'baholash',
+          comment: body.comment
+        }
+      }),
+    createAssignment: (body) =>
+      request('/api/teacher/assignments', {
+        method: 'POST',
+        body: {
+          title: body.title,
+          description: body.description || '',
+          subjectId: body.subjectId,
+          dueDate: body.dueDate,
+          maxScore: body.maxScore != null ? Number(body.maxScore) : undefined
+        }
+      }),
+    assignments: () => request('/api/teacher/assignments'),
+    gradeAssignment: (assignmentId, body) =>
+      request(`/api/teacher/assignments/${assignmentId}/grade`, {
+        method: 'PUT',
+        body: {
+          studentId: body.studentId,
+          score: Number(body.score),
+          feedback: body.feedback || ''
+        }
+      })
+  }
 };
 
 window.API = API;

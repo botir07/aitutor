@@ -67,6 +67,21 @@ router.post('/:id/submit', protect, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Test topilmadi' });
     }
 
+    const maxAttempts = typeof quiz.maxAttempts === 'number' && quiz.maxAttempts >= 0
+      ? quiz.maxAttempts
+      : 3;
+    const priorAttempts = await Grade.countDocuments({
+      student: req.user.id,
+      quiz: quiz._id,
+      type: 'quiz'
+    });
+    if (priorAttempts >= maxAttempts) {
+      return res.status(403).json({
+        success: false,
+        message: `Bu test uchun urinishlar tugadi (maksimum ${maxAttempts})`
+      });
+    }
+
     const answers = Array.isArray(req.body.answers) ? req.body.answers : [];
     let earned = 0;
 

@@ -17,6 +17,7 @@ const subjectRoutes = require('./routes/subjects');
 const quizRoutes = require('./routes/quizzes');
 const gradeRoutes = require('./routes/grades');
 const chatRoutes = require('./routes/chat');
+const teacherRoutes = require('./routes/teacher');
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use('/api/subjects', subjectRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/grades', gradeRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/teacher', teacherRoutes);
 
 app.use(express.static(path.join(__dirname, '../frontend')));
 
@@ -121,6 +123,17 @@ async function connectDb() {
 }
 
 async function start() {
+  if (process.env.NODE_ENV === 'production') {
+    const secret = process.env.JWT_SECRET;
+    const unsafe = !secret ||
+      secret === 'your_super_secret_jwt_key_here' ||
+      secret === 'change_me_to_a_long_random_string_in_production_please_seriously';
+    if (unsafe) {
+      console.error('FATAL: production uchun JWT_SECRET ni .env da uzun, tasodifiy qiymatga almashtiring.');
+      process.exit(1);
+    }
+  }
+
   const dbOk = await connectDb();
   if (dbOk) {
     try {

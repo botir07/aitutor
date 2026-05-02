@@ -180,6 +180,21 @@ async function http(method, path, { token, body } = {}) {
   }
 
   {
+    const answers = fullQuiz.questions.map(q => ({
+      questionId: q._id,
+      selectedOption: q.options[0]._id
+    }));
+    for (let n = 2; n <= 3; n++) {
+      const r = await http('POST', `/api/quizzes/${firstQuiz._id}/submit`, { token, body: { answers } });
+      assert(`Qayta topshirish ${n} (maxAttempts) → 200`, r.status === 200);
+    }
+    {
+      const r = await http('POST', `/api/quizzes/${firstQuiz._id}/submit`, { token, body: { answers } });
+      assert('4-urinish (max 3) → 403', r.status === 403);
+    }
+  }
+
+  {
     const r = await http('POST', `/api/quizzes/000000000000000000000000/submit`, { token, body: { answers: [] } });
     assert('Topilmagan quiz → 404', r.status === 404);
   }

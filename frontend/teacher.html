@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html class="dark" lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>O'qituvchi paneli — Maktab AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #0b1326; color: #dae2fd; }
+    .glass { background: rgba(23, 31, 51, 0.85); backdrop-filter: blur(16px); border: 1px solid #31394d; }
+    .material-symbols-outlined { vertical-align: middle; font-size: 22px; }
+    .tab-active { color: #4edea3; border-bottom: 2px solid #4edea3; }
+    .loader { border: 3px solid rgba(78, 222, 163, 0.2); border-top-color: #4edea3; border-radius: 50%; width: 36px; height: 36px; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="min-h-screen">
+  <header class="glass sticky top-0 z-40 border-b border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <span class="material-symbols-outlined text-emerald-400">school</span>
+      <div>
+        <h1 class="text-lg font-bold text-white leading-tight">O'qituvchi paneli</h1>
+        <p class="text-xs text-slate-500" id="teacher-welcome">…</p>
+      </div>
+    </div>
+    <nav class="flex flex-wrap gap-1 text-sm" id="tabs">
+      <button type="button" data-tab="dash" class="tab-btn px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 tab-active">Dashboard</button>
+      <button type="button" data-tab="students" class="tab-btn px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60">O'quvchilar</button>
+      <button type="button" data-tab="att" class="tab-btn px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60">Davomat</button>
+      <button type="button" data-tab="att-hist" class="tab-btn px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60">Davomat tarixi</button>
+      <button type="button" data-tab="grades" class="tab-btn px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60">Baholar</button>
+      <button type="button" data-tab="hw" class="tab-btn px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60">Vazifalar</button>
+    </nav>
+    <div class="flex items-center gap-2">
+      <a href="/" class="text-sm text-slate-400 hover:text-emerald-400">← Asosiy sayt</a>
+      <button type="button" id="btn-logout" class="text-sm text-red-400 hover:text-red-300">Chiqish</button>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto p-4 pb-20" id="main">
+    <div class="flex justify-center py-24"><div class="loader"></div></div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+(function () {
+  function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  const main = document.getElementById('main');
+  let studentsCache = [];
+  let subjectsCache = [];
+
+  async function gate() {
+    if (!Auth.isLoggedIn()) {
+      window.location.href = '/';
+      return false;
+    }
+    const me = await API.me();
+    if (!me || !me.data) {
+      window.location.href = '/';
+      return false;
+    }
+    const ok = ['teacher', 'admin'].includes(me.data.role);
+    if (!ok) {
+      window.location.href = '/#/dashboard';
+      return false;
+    }
+    Auth.setUser(me.data);
+    document.getElementById('teacher-welcome').textContent =
+      me.data.firstName + ' ' + me.data.lastName + ' · ' + (me.data.role === 'admin' ? 'Admin' : 'O\'qituvchi');
+    return true;
+  }
+
+  function setTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      const on = b.getAttribute('data-tab') === name;
+      b.classList.toggle('tab-active', on);
+      b.classList.toggle('text-slate-400', !on);
+      b.classList.toggle('text-white', on);
+    });
+  }
+
+  async function loadCaches() {
+    const [st, sub] = await Promise.all([
+      API.teacher.students().catch(() => ({ data: [] })),
+      API.getSubjects().catch(() => ({ data: [] }))
+    ]);
+    studentsCache = st.data || [];
+    subjectsCache = sub.data || [];
+  }
+
+  async function renderDash() {
+    setTab('dash');
+    main.innerHTML = '<div class="flex justify-center py-12"><div class="loader"></div></div>';
+    const res = await API.teacher.dashboard();
+    const d = res.data;
+    const rg = (d.recentGrades || []).map(g => {
+      const sn = g.student ? (g.student.firstName + ' ' + g.student.lastName) : '—';
+      const sub = g.subject ? (g.subject.nameUz || g.subject.name) : '—';
+      return `<tr class="border-t border-slate-800"><td class="py-2">${esc(sn)}</td><td>${esc(sub)}</td><td>${g.score}%</td><td>${g.grade}</td></tr>`;
+    }).join('');
+
+    main.innerHTML = `
+      <div class="grid md:grid-cols-3 gap-4 mb-8">
+        <div class="glass rounded-2xl p-5">
+          <p class="text-slate-500 text-sm">Faol o'quvchilar</p>
+          <p class="text-3xl font-bold text-emerald-400">${d.studentCount}</p>
+        </div>
+        <div class="glass rounded-2xl p-5">
+          <p class="text-slate-500 text-sm">Bugungi davomat (siz belgilagan)</p>
+          <p class="text-3xl font-bold text-amber-400">${d.today.attendanceRatePercent}%</p>
+          <p class="text-xs text-slate-500 mt-1">${d.today.presentOrExcused} / ${d.studentCount} (kelgan+kech+sababli)</p>
+        </div>
+        <div class="glass rounded-2xl p-5">
+          <p class="text-slate-500 text-sm">So'nggi 7 kun yozuvlari</p>
+          <p class="text-3xl font-bold text-blue-400">${d.weekAttendanceCount}</p>
+        </div>
+      </div>
+      <div class="glass rounded-2xl p-5">
+        <h2 class="font-bold text-white mb-3">So'nggi qo'lda baholar</h2>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead><tr class="text-slate-500"><th class="pb-2">O'quvchi</th><th>Fan</th><th>Ball</th><th>Baho</th></tr></thead>
+            <tbody>${rg || '<tr><td colspan="4" class="py-4 text-slate-500">Hozircha yozuv yo\'q</td></tr>'}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  async function renderStudents() {
+    setTab('students');
+    main.innerHTML = `
+      <div class="glass rounded-2xl p-5 mb-4 flex gap-3 flex-wrap">
+        <input type="search" id="stu-q" placeholder="Qidirish (ism, familiya, email)..." class="flex-1 min-w-[200px] bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm">
+        <button type="button" id="stu-search" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white text-sm font-semibold">Qidirish</button>
+      </div>
+      <div id="stu-list" class="glass rounded-2xl p-5"><div class="loader mx-auto"></div></div>`;
+
+    async function run(q) {
+      const r = await API.teacher.students(q);
+      const rows = (r.data || []).map(s =>
+        `<tr class="border-t border-slate-800"><td class="py-2 font-mono text-xs">${s._id}</td><td>${esc(s.firstName)} ${esc(s.lastName)}</td><td>${esc(s.email)}</td><td>${esc(s.grade || '—')}</td></tr>`
+      ).join('');
+      document.getElementById('stu-list').innerHTML =
+        `<div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="text-slate-500 text-left"><th class="pb-2">ID</th><th>Ism</th><th>Email</th><th>Sinf</th></tr></thead><tbody>${rows || '<tr><td colspan="4">Topilmadi</td></tr>'}</tbody></table></div>`;
+    }
+    document.getElementById('stu-search').onclick = () => run(document.getElementById('stu-q').value.trim());
+    await run('');
+  }
+
+  async function renderAttendance() {
+    setTab('att');
+    await loadCaches();
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = studentsCache.map(s => `
+      <tr class="border-t border-slate-800" data-sid="${s._id}">
+        <td class="py-2">${esc(s.firstName)} ${esc(s.lastName)}</td>
+        <td>
+          <select class="att-status bg-slate-900 border border-slate-700 rounded-lg text-sm px-2 py-1">
+            <option value="present">Keldi</option>
+            <option value="absent">Kelmadi</option>
+            <option value="late">Kech qoldi</option>
+            <option value="excused">Sababli</option>
+          </select>
+        </td>
+        <td><input type="text" class="att-note w-full bg-slate-900 border border-slate-700 rounded-lg text-sm px-2 py-1" placeholder="Izoh"></td>
+      </tr>`).join('');
+
+    main.innerHTML = `
+      <div class="glass rounded-2xl p-5 mb-4 flex flex-wrap gap-3 items-end">
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Sana</label>
+          <input type="date" id="att-date" value="${today}" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+        </div>
+        <button type="button" id="att-save" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-semibold">Saqlash (bulk)</button>
+        <span id="att-msg" class="text-sm text-slate-400"></span>
+      </div>
+      <div class="glass rounded-2xl p-5 overflow-x-auto">
+        <table class="w-full text-sm text-left">
+          <thead><tr class="text-slate-500"><th>O'quvchi</th><th>Holat</th><th>Izoh</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="3">O\'quvchi yo\'q</td></tr>'}</tbody>
+        </table>
+      </div>`;
+
+    document.getElementById('att-save').onclick = async () => {
+      const date = document.getElementById('att-date').value;
+      const records = [];
+      main.querySelectorAll('tr[data-sid]').forEach(tr => {
+        records.push({
+          studentId: tr.getAttribute('data-sid'),
+          status: tr.querySelector('.att-status').value,
+          note: tr.querySelector('.att-note').value
+        });
+      });
+      if (!records.length) return;
+      document.getElementById('att-msg').textContent = 'Saqlanmoqda...';
+      try {
+        await API.teacher.saveAttendance(date, records);
+        document.getElementById('att-msg').textContent = 'Saqlandi ✓';
+      } catch (e) {
+        document.getElementById('att-msg').textContent = e.message || 'Xato';
+      }
+    };
+  }
+
+  async function renderAttHist() {
+    setTab('att-hist');
+    main.innerHTML = '<div class="flex justify-center py-12"><div class="loader"></div></div>';
+    const r = await API.teacher.attendance({});
+    const rows = (r.data || []).map(a => {
+      const st = a.student;
+      const nm = st ? st.firstName + ' ' + st.lastName : '—';
+      return `<tr class="border-t border-slate-800"><td class="py-2">${a.date ? new Date(a.date).toISOString().slice(0,10) : ''}</td><td>${esc(nm)}</td><td>${esc(a.status)}</td><td>${esc(a.note || '')}</td></tr>`;
+    }).join('');
+    main.innerHTML = `<div class="glass rounded-2xl p-5 overflow-x-auto">
+      <h2 class="font-bold text-white mb-3">Davomat tarixi</h2>
+      <table class="w-full text-sm text-left"><thead><tr class="text-slate-500"><th>Sana</th><th>O'quvchi</th><th>Holat</th><th>Izoh</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="4">Bo\'sh</td></tr>'}</tbody></table></div>
+      <div class="glass rounded-2xl p-5 mt-4">
+        <h2 class="font-bold text-white mb-3">Statistika (30 kun)</h2>
+        <div id="att-stats" class="text-sm text-slate-400">Yuklanmoqda...</div>
+      </div>`;
+    const s = await API.teacher.attendanceStats(30);
+    const sr = (s.data || []).map(x => {
+      const st = x.student;
+      const nm = st && st.firstName ? st.firstName + ' ' + st.lastName : '—';
+      return `<tr class="border-t border-slate-800"><td class="py-2">${esc(nm)}</td><td>${x.attendancePercent}%</td><td>${x.daysRecorded} kun</td></tr>`;
+    }).join('');
+    document.getElementById('att-stats').innerHTML =
+      `<table class="w-full text-left"><thead><tr class="text-slate-500"><th>O'quvchi</th><th>Foiz</th><th>Yozuvlar</th></tr></thead><tbody>${sr || '<tr><td colspan="3">Ma\'lumot yo\'q</td></tr>'}</tbody></table>`;
+  }
+
+  async function renderGrades() {
+    setTab('grades');
+    await loadCaches();
+    const stOpts = studentsCache.map(s => `<option value="${s._id}">${esc(s.firstName)} ${esc(s.lastName)}</option>`).join('');
+    const subOpts = subjectsCache.map(s => `<option value="${s._id}">${esc(s.nameUz || s.name)}</option>`).join('');
+    main.innerHTML = `
+      <div class="glass rounded-2xl p-5 max-w-xl">
+        <h2 class="font-bold text-white mb-4">Qo'lda baho</h2>
+        <form id="grade-form" class="space-y-3">
+          <div><label class="text-xs text-slate-500">O'quvchi</label>
+            <select name="studentId" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">${stOpts}</select></div>
+          <div><label class="text-xs text-slate-500">Fan</label>
+            <select name="subjectId" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">${subOpts}</select></div>
+          <div><label class="text-xs text-slate-500">Ball (0–100)</label>
+            <input name="score" type="number" min="0" max="100" value="85" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white"></div>
+          <div><label class="text-xs text-slate-500">Izoh</label>
+            <textarea name="comment" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white"></textarea></div>
+          <button type="submit" class="w-full py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-semibold">Saqlash</button>
+          <p id="grade-msg" class="text-sm text-slate-400"></p>
+        </form>
+      </div>`;
+    document.getElementById('grade-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const body = Object.fromEntries(fd.entries());
+      document.getElementById('grade-msg').textContent = '...';
+      try {
+        await API.teacher.postGrade(body);
+        document.getElementById('grade-msg').textContent = 'Baho saqlandi ✓';
+      } catch (err) {
+        document.getElementById('grade-msg').textContent = err.message;
+      }
+    };
+  }
+
+  async function renderHw() {
+    setTab('hw');
+    await loadCaches();
+    const subOpts = subjectsCache.map(s => `<option value="${s._id}">${esc(s.nameUz || s.name)}</option>`).join('');
+    const stOpts = studentsCache.map(s => `<option value="${s._id}">${esc(s.firstName)} ${esc(s.lastName)}</option>`).join('');
+
+    main.innerHTML = `
+      <div class="grid lg:grid-cols-2 gap-6">
+        <div class="glass rounded-2xl p-5">
+          <h2 class="font-bold text-white mb-4">Yangi vazifa</h2>
+          <form id="hw-create" class="space-y-3 text-sm">
+            <input name="title" required placeholder="Sarlavha" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+            <textarea name="description" placeholder="Tavsif" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white"></textarea>
+            <select name="subjectId" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">${subOpts}</select>
+            <input name="dueDate" type="datetime-local" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+            <input name="maxScore" type="number" min="1" value="100" placeholder="Max ball" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+            <button type="submit" class="w-full py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-semibold">Yaratish</button>
+            <p id="hw-msg" class="text-slate-400"></p>
+          </form>
+        </div>
+        <div class="glass rounded-2xl p-5">
+          <h2 class="font-bold text-white mb-4">Vazifaga baho</h2>
+          <form id="hw-grade" class="space-y-3 text-sm">
+            <select id="hw-aid" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white"><option value="">— Vazifa tanlang —</option></select>
+            <select name="studentId" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">${stOpts}</select>
+            <input name="score" type="number" min="0" placeholder="Ball" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+            <input name="feedback" placeholder="Feedback" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+            <button type="submit" class="w-full py-2 bg-amber-600 hover:bg-amber-500 rounded-xl text-white font-semibold">Baho qo'yish</button>
+            <p id="hw-gmsg" class="text-slate-400"></p>
+          </form>
+        </div>
+      </div>
+      <div class="glass rounded-2xl p-5 mt-6" id="hw-list-wrap"><div class="loader mx-auto"></div></div>`;
+
+    const list = await API.teacher.assignments();
+    const sel = document.getElementById('hw-aid');
+    (list.data || []).forEach(a => {
+      const o = document.createElement('option');
+      o.value = a._id;
+      o.textContent = a.title + ' — ' + new Date(a.dueDate).toLocaleString();
+      sel.appendChild(o);
+    });
+
+    document.getElementById('hw-create').onsubmit = async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const body = Object.fromEntries(fd.entries());
+      const due = body.dueDate;
+      document.getElementById('hw-msg').textContent = '...';
+      try {
+        await API.teacher.createAssignment({ ...body, dueDate: new Date(due).toISOString() });
+        document.getElementById('hw-msg').textContent = 'Yaratildi ✓';
+        renderHw();
+      } catch (err) {
+        document.getElementById('hw-msg').textContent = err.message;
+      }
+    };
+
+    document.getElementById('hw-grade').onsubmit = async (e) => {
+      e.preventDefault();
+      const aid = document.getElementById('hw-aid').value;
+      if (!aid) return;
+      const fd = new FormData(e.target);
+      const body = Object.fromEntries(fd.entries());
+      document.getElementById('hw-gmsg').textContent = '...';
+      try {
+        await API.teacher.gradeAssignment(aid, body);
+        document.getElementById('hw-gmsg').textContent = 'Saqlandi ✓';
+      } catch (err) {
+        document.getElementById('hw-gmsg').textContent = err.message;
+      }
+    };
+
+    const cards = (list.data || []).map(a => {
+      const subs = (a.submissions || []).length;
+      return `<div class="border border-slate-700 rounded-xl p-4 mb-3">
+        <div class="font-semibold text-white">${esc(a.title)}</div>
+        <div class="text-xs text-slate-500">Muddat: ${new Date(a.dueDate).toLocaleString()} · Topshiriqlar: ${subs}</div>
+        <div class="text-xs text-slate-400 mt-1">${esc(a.description || '').slice(0, 120)}</div>
+      </div>`;
+    }).join('');
+    document.getElementById('hw-list-wrap').innerHTML =
+      `<h2 class="font-bold text-white mb-3">Mening vazifalarim</h2>${cards || '<p class="text-slate-500">Hozircha yo\'q</p>'}`;
+  }
+
+  document.getElementById('tabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab-btn');
+    if (!btn) return;
+    const t = btn.getAttribute('data-tab');
+    if (t === 'dash') renderDash();
+    else if (t === 'students') renderStudents();
+    else if (t === 'att') renderAttendance();
+    else if (t === 'att-hist') renderAttHist();
+    else if (t === 'grades') renderGrades();
+    else if (t === 'hw') renderHw();
+  });
+
+  document.getElementById('btn-logout').onclick = () => Auth.logout();
+
+  async function boot() {
+    if (!await gate()) return;
+    main.innerHTML = '';
+    await renderDash();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+  </script>
+</body>
+</html>

@@ -104,8 +104,7 @@ async function ensureSeedData() {
     }
   }
 
-  const userCount = await User.countDocuments();
-  if (userCount === 0) {
+  if (!(await User.exists({ email: 'demo@maktab.uz' }))) {
     await User.create({
       firstName: 'Demo',
       lastName: 'O\'quvchi',
@@ -114,7 +113,18 @@ async function ensureSeedData() {
       role: 'student',
       grade: '10-A'
     });
-    console.log('🌱 Seed: Demo foydalanuvchi yaratildi (demo@maktab.uz / demo1234)');
+    console.log('🌱 Seed: Demo o\'quvchi (demo@maktab.uz / demo1234)');
+  }
+
+  if (!(await User.exists({ email: 'teacher@maktab.uz' }))) {
+    await User.create({
+      firstName: 'Demo',
+      lastName: 'O\'qituvchi',
+      email: 'teacher@maktab.uz',
+      password: 'teacher123',
+      role: 'teacher'
+    });
+    console.log('🌱 Seed: Demo o\'qituvchi (teacher@maktab.uz / teacher123)');
   }
 }
 

@@ -31,6 +31,11 @@ const App = {
     document.querySelectorAll('[data-user-name]').forEach(el => el.textContent = name);
     document.querySelectorAll('[data-user-initial]').forEach(el => el.textContent = initial);
     document.querySelectorAll('[data-user-firstname]').forEach(el => el.textContent = user.firstName);
+
+    const isStaff = ['teacher', 'admin'].includes(user.role);
+    document.querySelectorAll('.teacher-nav-only').forEach(el => {
+      el.classList.toggle('hidden', !isStaff);
+    });
   },
 
   async showPage(page) {
