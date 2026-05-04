@@ -9,6 +9,8 @@ const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose');
 const path = require('path');
 const os = require('os');
+const http = require('http');
+const { Server } = require('socket.io');
 
 const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
@@ -19,6 +21,7 @@ const gradeRoutes = require('./routes/grades');
 const chatRoutes = require('./routes/chat');
 const assignmentRoutes = require('./routes/assignments');
 const teacherRoutes = require('./routes/teacher');
+const roomRoutes = require('./routes/rooms');
 
 const app = express();
 
@@ -28,8 +31,15 @@ const corsOrigin = process.env.CORS_ORIGIN === '*' || !process.env.CORS_ORIGIN
 
 app.use(helmet({
   contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  originAgentCluster: false
 }));
+
+app.use((req, res, next) => {
+  res.setHeader('Origin-Agent-Cluster', '?0');
+  res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
+  next();
+});
 app.use(cors({ origin: corsOrigin }));
 app.use(compression());
 app.use(express.json({ limit: '10mb' }));
@@ -74,6 +84,7 @@ app.use('/api/grades', gradeRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/teacher', teacherRoutes);
+app.use('/api/rooms', roomRoutes);
 
 app.use(express.static(path.join(__dirname, '../frontend')));
 
@@ -146,7 +157,173 @@ async function start() {
     }
   }
 
-  const server = app.listen(PORT, HOST, () => {
+  const server = http.createServer(app);
+  const io = new Server(server, {
+    cors: {
+      origin: corsOrigin === '*' ? '*' : corsOrigin,
+      methods: ['GET', 'POST'],
+      credentials: true
+    }
+  });
+
+  const rooms = new Map();
+  const playerRooms = new Map();
+
+  io.on('connection', (socket) => {
+    let currentUser = null;
+    let currentRoom = null;
+
+    socket.on('authenticate', (data) => {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(data.token, process.env.JWT_SECRET || 'fallback_secret');
+        currentUser = {
+          id: decoded.id,
+          firstName: decoded.firstName,
+          lastName: decoded.lastName,
+          role: decoded.role,
+          avatar: data.avatar || '👤'
+        };
+        socket.emit('authenticated', { success: true, user: currentUser });
+      } catch (err) {
+        socket.emit('authenticated', { success: false, error: 'Invalid token' });
+      }
+    });
+
+    socket.on('join-room', (data) => {
+      if (!currentUser) {
+        socket.emit('error', { message: 'Avval tizimga kiring' });
+        return;
+      }
+
+      const { code } = data;
+      if (currentRoom) {
+        socket.leave(currentRoom);
+        const roomData = rooms.get(currentRoom);
+        if (roomData) {
+          roomData.players = roomData.players.filter(p => p.id !== currentUser.id);
+          io.to(currentRoom).emit('player-left', { playerId: currentUser.id });
+        }
+      }
+
+      if (!rooms.has(code)) {
+        rooms.set(code, {
+          code,
+          players: [],
+          teacherId: null,
+          teacherName: '',
+          chatHistory: []
+        });
+      }
+
+      const room = rooms.get(code);
+      const existingPlayer = room.players.find(p => p.id === currentUser.id);
+      if (!existingPlayer) {
+        room.players.push({
+          id: currentUser.id,
+          name: `${currentUser.firstName} ${currentUser.lastName}`,
+          avatar: currentUser.avatar,
+          position: { x: Math.random() * 40 - 20, z: Math.random() * 40 - 20 },
+          role: currentUser.role
+        });
+      }
+
+      currentRoom = code;
+      playerRooms.set(socket.id, code);
+      socket.join(code);
+
+      socket.emit('room-joined', {
+        room: {
+          code: room.code,
+          players: room.players,
+          teacherName: room.teacherName,
+          chatHistory: room.chatHistory
+        },
+        user: currentUser
+      });
+
+      socket.to(code).emit('player-joined', {
+        player: room.players.find(p => p.id === currentUser.id)
+      });
+
+      if (currentUser.role === 'teacher' || currentUser.role === 'admin') {
+        room.teacherId = currentUser.id;
+        room.teacherName = `${currentUser.firstName} ${currentUser.lastName}`;
+        io.to(code).emit('teacher-updated', { teacherName: room.teacherName });
+      }
+    });
+
+    socket.on('leave-room', () => {
+      if (!currentRoom || !currentUser) return;
+
+      const room = rooms.get(currentRoom);
+      if (room) {
+        room.players = room.players.filter(p => p.id !== currentUser.id);
+        socket.to(currentRoom).emit('player-left', { playerId: currentUser.id });
+      }
+
+      socket.leave(currentRoom);
+      currentRoom = null;
+      playerRooms.delete(socket.id);
+      socket.emit('room-left');
+    });
+
+    socket.on('player-move', (data) => {
+      if (!currentRoom || !currentUser) return;
+
+      const room = rooms.get(currentRoom);
+      if (!room) return;
+
+      const player = room.players.find(p => p.id === currentUser.id);
+      if (player && data.position) {
+        player.position = {
+          x: Math.max(-100, Math.min(100, data.position.x)),
+          z: Math.max(-100, Math.min(100, data.position.z))
+        };
+      }
+
+      socket.to(currentRoom).emit('player-moved', {
+        playerId: currentUser.id,
+        position: player?.position
+      });
+    });
+
+    socket.on('chat-message', (data) => {
+      if (!currentRoom || !currentUser) return;
+
+      const room = rooms.get(currentRoom);
+      if (!room) return;
+
+      const message = {
+        id: Date.now().toString(),
+        senderId: currentUser.id,
+        senderName: `${currentUser.firstName} ${currentUser.lastName}`,
+        senderAvatar: currentUser.avatar,
+        content: (data.content || '').slice(0, 500),
+        timestamp: new Date().toISOString()
+      };
+
+      room.chatHistory.push(message);
+      if (room.chatHistory.length > 100) {
+        room.chatHistory = room.chatHistory.slice(-100);
+      }
+
+      io.to(currentRoom).emit('chat-message', message);
+    });
+
+    socket.on('disconnect', () => {
+      if (currentRoom && currentUser) {
+        const room = rooms.get(currentRoom);
+        if (room) {
+          room.players = room.players.filter(p => p.id !== currentUser.id);
+          io.to(currentRoom).emit('player-left', { playerId: currentUser.id });
+        }
+      }
+      playerRooms.delete(socket.id);
+    });
+  });
+
+  server.listen(PORT, HOST, () => {
     console.log('\n=========================================');
     console.log('  ✅ MAKTAB AI ISHLAMOQDA');
     console.log('=========================================');
@@ -170,12 +347,14 @@ async function start() {
 
   const shutdown = async (signal) => {
     console.log(`\n${signal} qabul qilindi, yopilmoqda...`);
+    io.close();
     server.close(async () => {
       await mongoose.connection.close().catch(() => {});
       if (memoryServer) await memoryServer.stop().catch(() => {});
       process.exit(0);
     });
   };
+
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 }

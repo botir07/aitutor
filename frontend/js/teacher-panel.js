@@ -529,6 +529,131 @@
     else if (t === 'att-hist') renderAttHist();
     else if (t === 'journal') renderJournal();
     else if (t === 'hw') renderHw();
+    else if (t === 'metaverse') renderMetaverse();
+  }
+
+  async function renderMetaverse() {
+    setTab('metaverse');
+    const roomsRes = await API.rooms.list().catch(() => ({ data: [] }));
+    const rooms = roomsRes.data || [];
+    const myRooms = rooms.filter(r => {
+      const user = Auth.getUser();
+      return user && (r.teacherId === user.id || r.teacherName === `${user.firstName} ${user.lastName}`);
+    });
+
+    mainEl.innerHTML = `
+      <div class="max-w-4xl space-y-6">
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-bold text-white flex items-center gap-2">
+            <span class="text-2xl">🌐</span> Metaverse Boshqaruv
+          </h2>
+          <a href="/metaverse.html" target="_blank" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white text-sm font-semibold flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">vrpano</span>
+            Metaversga O'tish
+          </a>
+        </div>
+
+        <div class="tp-glass rounded-2xl p-5">
+          <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+            <span class="text-emerald-400 text-lg">📡</span> Aktiv Xonalar
+          </h3>
+          ${myRooms.length === 0
+            ? `<div class="text-center py-8 text-slate-500">
+                <span class="material-symbols-outlined text-4xl">meeting_room</span>
+                <p class="mt-2">Siz yaratgan xonalar yo'q</p>
+                <p class="text-sm mt-1">Metaversda "Ko'p O'yinchi" tugmasini bosing</p>
+              </div>`
+            : `<div class="space-y-3">
+                ${myRooms.map(room => `
+                  <div class="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                    <div>
+                      <div class="text-white font-semibold">${esc(room.name)}</div>
+                      <div class="text-xs text-slate-400 mt-1">
+                        Kod: <span class="font-mono text-emerald-400">${room.code}</span>
+                        ${room.subject ? ` · ${esc(room.subject)}` : ''}
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <span class="px-3 py-1 rounded-full text-xs font-medium ${room.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}">
+                        ${room.isActive ? 'Faol' : 'Yopiq'}
+                      </span>
+                      <button onclick="toggleRoomActive('${room.code}', ${!room.isActive})" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-white">
+                        ${room.isActive ? 'Yopish' : 'Ochish'}
+                      </button>
+                      <button onclick="deleteRoom('${room.code}')" class="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm text-red-400">
+                        O'chirish
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>`
+          }
+        </div>
+
+        <div class="tp-glass rounded-2xl p-5">
+          <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+            <span class="text-blue-400 text-lg">🔑</span> Kod Bilanqo'shilish
+          </h3>
+          <div class="flex gap-3">
+            <input type="text" id="join-room-code" placeholder="6 xonali kod" maxlength="6"
+              class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white font-mono uppercase tracking-widest">
+            <button onclick="joinMetaverseRoom()" class="px-6 py-2 bg-blue-600 hover:bg-blue-500 rounded-xl text-white font-semibold">
+              Qo'shilish
+            </button>
+          </div>
+          <p class="text-xs text-slate-500 mt-2">O'quvchilar ushbu kod bilan metaverse xonasiga qo'shilishi mumkin</p>
+        </div>
+
+        <div class="tp-glass rounded-2xl p-5">
+          <h3 class="font-semibold text-white mb-4 flex items-center gap-2">
+            <span class="text-amber-400 text-lg">ℹ️</span> Metaverse Haqida
+          </h3>
+          <div class="text-sm text-slate-400 space-y-2">
+            <p>• O'quvchilar <a href="/metaverse.html" class="text-emerald-400 hover:underline">metaverse.html</a> sahifasida "Ko'p O'yinchi" tugmasini bosib xonalarga qo'shilishadi.</p>
+            <p>• Xonalarni yaratish va boshqarish uchun quyidagi kodni oling va o'quvchilarga boring.</p>
+            <p>• O'qituvchi sifatida siz xonani yopishingiz yoki o'chirishingiz mumkin.</p>
+          </div>
+        </div>
+      </div>
+    `;
+
+    window.toggleRoomActive = async (code, active) => {
+      try {
+        await API.rooms.update(code, { isActive: active });
+        showNotification(active ? 'Xona ochildi' : 'Xona yopildi');
+        renderMetaverse();
+      } catch (err) {
+        showNotification('Xato: ' + err.message);
+      }
+    };
+
+    window.deleteRoom = async (code) => {
+      if (!confirm('Xonani o\'chirishni tasdiqlaysizmi?')) return;
+      try {
+        await API.rooms.delete(code);
+        showNotification('Xona o\'chirildi');
+        renderMetaverse();
+      } catch (err) {
+        showNotification('Xato: ' + err.message);
+      }
+    };
+
+    window.joinMetaverseRoom = () => {
+      const code = document.getElementById('join-room-code').value.trim().toUpperCase();
+      if (!code || code.length !== 6) {
+        showNotification('6 xonali kod kiriting');
+        return;
+      }
+      window.open(`/metaverse.html?room=${code}`, '_blank');
+    };
+
+    window.showNotification = (msg) => {
+      const n = document.createElement('div');
+      n.className = 'fixed bottom-4 right-4 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg z-50';
+      n.textContent = msg;
+      document.body.appendChild(n);
+      setTimeout(() => n.remove(), 3000);
+    };
   }
 
   global.TeacherPanel = {

@@ -150,7 +150,16 @@ const API = {
     myQuizzes: () => request('/api/teacher/quizzes')
   },
 
-  createQuiz: (body) => request('/api/quizzes', { method: 'POST', body })
+  createQuiz: (body) => request('/api/quizzes', { method: 'POST', body }),
+
+  // Multiplayer Rooms
+  rooms: {
+    list: () => request('/api/rooms'),
+    get: (code) => request(`/api/rooms/${code}`),
+    create: (body) => request('/api/rooms', { method: 'POST', body }),
+    update: (code, body) => request(`/api/rooms/${code}`, { method: 'PUT', body }),
+    delete: (code) => request(`/api/rooms/${code}`, { method: 'DELETE' })
+  }
 };
 
 window.API = API;

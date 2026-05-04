@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maktab AI - Metaverse Campus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/three@0.152.0/build/three.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="/js/api.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Exo 2', sans-serif; 
+            overflow: hidden; 
+            background: #0a0a1a;
+        }
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+        
+        .hud-panel {
+            position: fixed;
+            background: rgba(10, 10, 30, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(78, 222, 163, 0.3);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 0 40px rgba(78, 222, 163, 0.15), inset 0 0 30px rgba(78, 222, 163, 0.05);
+        }
+        
+        .neon-glow {
+            text-shadow: 0 0 10px rgba(78, 222, 163, 0.8), 0 0 20px rgba(78, 222, 163, 0.5), 0 0 30px rgba(78, 222, 163, 0.3);
+        }
+        
+        .btn-metro {
+            background: linear-gradient(135deg, rgba(78, 222, 163, 0.2), rgba(78, 222, 163, 0.1));
+            border: 1px solid rgba(78, 222, 163, 0.5);
+            color: #4edea3;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn-metro:hover {
+            background: linear-gradient(135deg, rgba(78, 222, 163, 0.4), rgba(78, 222, 163, 0.2));
+            box-shadow: 0 0 30px rgba(78, 222, 163, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .zone-marker {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(78, 222, 163, 0.4), transparent);
+            border: 2px solid rgba(78, 222, 163, 0.6);
+            cursor: pointer;
+            animation: pulse-zone 2s infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+        
+        @keyframes pulse-zone {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .floating { animation: float 3s ease-in-out infinite; }
+        
+        .chat-bubble {
+            background: rgba(78, 222, 163, 0.15);
+            border: 1px solid rgba(78, 222, 163, 0.3);
+            border-radius: 16px;
+            padding: 12px 16px;
+            margin: 8px 0;
+            max-width: 280px;
+            animation: slideInBubble 0.3s ease-out;
+        }
+        
+        @keyframes slideInBubble {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0a1a, #1a1a3a);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-bar {
+            width: 300px;
+            height: 4px;
+            background: rgba(78, 222, 163, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #4edea3, #00d4ff);
+            border-radius: 2px;
+            animation: loading 2s ease-in-out;
+        }
+        
+        @keyframes loading {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        
+        .avatar-option {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+        
+        .avatar-option:hover, .avatar-option.selected {
+            border-color: #4edea3;
+            box-shadow: 0 0 20px rgba(78, 222, 163, 0.5);
+            transform: scale(1.1);
+        }
+        
+        .minimap {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            border: 2px solid rgba(78, 222, 163, 0.5);
+            background: rgba(10, 10, 30, 0.8);
+            overflow: hidden;
+        }
+        
+        .achievement-badge {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #000;
+            animation: achievementPop 0.5s ease-out;
+        }
+        
+        @keyframes achievementPop {
+            0% { transform: scale(0) rotate(-10deg); }
+            50% { transform: scale(1.2) rotate(5deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        
+        .stats-bar {
+            background: rgba(78, 222, 163, 0.1);
+            border: 1px solid rgba(78, 222, 163, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .stats-fill {
+            height: 8px;
+            background: linear-gradient(90deg, #4edea3, #00d4ff);
+            transition: width 0.5s ease;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(10, 10, 30, 0.5); }
+        ::-webkit-scrollbar-thumb { background: #4edea3; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="text-center">
+            <div class="text-6xl mb-6 floating">🎓</div>
+            <h1 class="text-4xl font-bold text-white mb-2 neon-glow" style="font-family: 'Orbitron'">MAKTAB AI</h1>
+            <p class="text-emerald-400 mb-8 text-lg">Metaverse Campus</p>
+            <div class="loading-bar">
+                <div class="loading-progress"></div>
+            </div>
+            <p class="text-slate-400 mt-4 text-sm">Virtual dunyoga tayyorlanmoqda...</p>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <nav class="fixed top-0 w-full z-50 flex justify-between items-center px-6 py-4 bg-gradient-to-b from-black/80 to-transparent">
+        <div class="flex items-center gap-3">
+            <div class="text-3xl">🎓</div>
+            <div>
+                <h1 class="text-xl font-bold text-white neon-glow" style="font-family: 'Orbitron'">MAKTAB AI</h1>
+                <p class="text-xs text-emerald-400">Metaverse Campus</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="toggleMiniMap()" class="btn-metro text-sm px-4 py-2">🗺️ Xarita</button>
+            <button onclick="toggleSocial()" class="btn-metro text-sm px-4 py-2">💬 Ijtimoiy</button>
+            <button onclick="toggleAchievements()" class="btn-metro text-sm px-4 py-2">🏆 Yutuqlar</button>
+            <button onclick="toggleMultiplayerPanel()" class="btn-metro text-sm px-4 py-2 bg-emerald-600/50">🌐 Ko'p O'yinchi</button>
+            <a href="/index.html" class="btn-metro text-sm px-4 py-2">← Ortga</a>
+        </div>
+    </nav>
+
+    <div class="hud-panel fixed top-24 left-6" style="min-width: 280px;">
+        <div class="flex items-center gap-4 mb-4">
+            <div id="playerAvatar" class="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-3xl border-2 border-emerald-400">👤</div>
+            <div>
+                <h3 class="text-white font-bold" id="playerName">O'quvchi</h3>
+                <p class="text-emerald-400 text-sm" id="playerRole">⭐ Daraja 1</p>
+            </div>
+        </div>
+        <div class="space-y-3">
+            <div>
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-slate-300">Tajriba</span>
+                    <span class="text-emerald-400" id="xpDisplay">0 / 100 XP</span>
+                </div>
+                <div class="stats-bar">
+                    <div class="stats-fill" id="xpBar" style="width: 0%"></div>
+                </div>
+            </div>
+            <div>
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-slate-300">Energiya</span>
+                    <span class="text-blue-400">100%</span>
+                </div>
+                <div class="stats-bar">
+                    <div class="stats-fill" style="width: 100%; background: linear-gradient(90deg, #00d4ff, #4edea3);"></div>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4 flex gap-2 flex-wrap">
+            <span class="achievement-badge">🌟 Birinchi Qadam</span>
+            <span class="achievement-badge">📚 Kitobxan</span>
+        </div>
+    </div>
+
+    <div class="hud-panel fixed top-24 right-6 text-right" id="locationPanel">
+        <div class="text-xs text-slate-400 uppercase tracking-wider">Hozirgi joylashuv</div>
+        <h3 class="text-white text-xl font-bold neon-glow" id="currentZone">Markaziy Maydon</h3>
+        <p class="text-emerald-400 text-sm mt-1" id="zoneDesc">Metaversning qalbi</p>
+    </div>
+
+    <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex gap-4">
+        <div class="hud-panel flex items-center gap-3 px-6 py-3">
+            <span class="text-emerald-400">🎮 Boshqaruv</span>
+            <div class="flex gap-2 text-sm text-slate-300">
+                <span>WASD</span>
+                <span class="text-slate-500">|</span>
+                <span>Sichqoncha</span>
+                <span class="text-slate-500">|</span>
+                <span>E - Interaktiv</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="hud-panel fixed bottom-6 left-6 hidden" id="minimapPanel" style="width: 200px;">
+        <h4 class="text-white font-bold mb-3 text-center">🗺️ Xarita</h4>
+        <div class="minimap mx-auto relative" id="minimap">
+            <div class="absolute inset-0" id="minimapPlayer">
+                <div class="absolute w-4 h-4 bg-emerald-400 rounded-full left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 shadow-lg shadow-emerald-400/50"></div>
+                <div class="absolute w-0 h-0 border-l-[6px] border-r-[6px] border-b-[10px] border-l-transparent border-r-transparent border-b-emerald-400 left-1/2 top-0 transform -translate-x-1/2 -translate-y-full"></div>
+            </div>
+            <div class="absolute top-4 left-8 w-3 h-3 bg-purple-400 rounded-full opacity-60"></div>
+            <div class="absolute bottom-8 right-6 w-3 h-3 bg-blue-400 rounded-full opacity-60"></div>
+            <div class="absolute top-12 right-10 w-3 h-3 bg-yellow-400 rounded-full opacity-60"></div>
+            <div class="absolute bottom-12 left-10 w-3 h-3 bg-pink-400 rounded-full opacity-60"></div>
+        </div>
+    </div>
+
+    <div class="hud-panel fixed top-24 left-1/2 transform -translate-x-1/2 hidden" id="socialPanel" style="width: 400px; max-height: 500px;">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-white font-bold text-lg flex items-center gap-2">
+                💬 Ijtimoiy Xona
+                <span id="mp-online-status" class="text-xs flex items-center gap-1 ml-2"></span>
+            </h3>
+            <button onclick="toggleSocial()" class="text-slate-400 hover:text-white">✕</button>
+        </div>
+        <div id="mp-room-info" class="text-xs text-slate-500 mb-2 hidden">Xona: — · 0 o'yinchi</div>
+        <div class="flex gap-2 mb-4 overflow-x-auto pb-2" id="onlineUsers">
+            <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-lg border-2 border-emerald-400">👤</div>
+            <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-lg border-2 border-purple-400">👤</div>
+            <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-lg border-2 border-yellow-400">👤</div>
+        </div>
+        <div class="bg-black/30 rounded-xl p-4 h-64 overflow-y-auto" id="chatMessages">
+            <div class="chat-bubble">
+                <div class="text-xs text-emerald-400 font-bold">🤖 AI Bot</div>
+                <div class="text-slate-300 text-sm mt-1">Xush kelibsiz! Metaversda o'rganishni boshlang!</div>
+            </div>
+        </div>
+        <div class="mt-4 flex gap-2">
+            <input type="text" id="chatInput" placeholder="Xabar yozing..." class="flex-1 bg-black/30 border border-emerald-500/30 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400">
+            <button onclick="sendMessage()" class="btn-metro px-4 py-2">Yuborish</button>
+        </div>
+        <div id="mp-leave-btn" class="mt-3 hidden">
+            <button onclick="leaveRoom()" class="w-full py-2 bg-red-500/20 hover:bg-red-500/30 rounded-xl text-red-400 text-sm font-medium">
+                Xonadan Chiqish
+            </button>
+        </div>
+    </div>
+
+    <div class="hud-panel fixed top-24 right-6 hidden" id="achievementPanel" style="width: 320px;">
+        <h3 class="text-white font-bold mb-4 flex items-center gap-2">🏆 Yutuqlarim</h3>
+        <div class="space-y-3" id="achievementList">
+            <div class="flex items-center gap-3 p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+                <span class="text-2xl">🌟</span>
+                <div>
+                    <div class="text-white font-semibold">Birinchi Qadam</div>
+                    <div class="text-slate-400 text-xs">Metaversga kirdingiz</div>
+                </div>
+                <span class="ml-auto text-emerald-400">✓</span>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+                <span class="text-2xl">📚</span>
+                <div>
+                    <div class="text-white font-semibold">Kitobxan</div>
+                    <div class="text-slate-400 text-xs">Kutubxonaga tashrif buyurdingiz</div>
+                </div>
+                <span class="ml-auto text-emerald-400">✓</span>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-purple-500/10 rounded-lg border border-purple-500/30">
+                <span class="text-2xl">🎮</span>
+                <div>
+                    <div class="text-white font-semibold">O'yin Boshlash</div>
+                    <div class="text-slate-400 text-xs">Mini o'yin o'ynadingiz</div>
+                </div>
+                <span class="ml-auto text-slate-400">?</span>
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
+                <span class="text-2xl">💬</span>
+                <div>
+                    <div class="text-white font-semibold">Suhbatxo'r</div>
+                    <div class="text-slate-400 text-xs">10 ta xabar yuboring</div>
+                </div>
+                <span class="ml-auto text-slate-400">0/10</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="hud-panel fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden" id="avatarPanel">
+        <h3 class="text-white font-bold text-xl mb-6 text-center">🎭 Avatar Tanlang</h3>
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="avatar-option bg-gradient-to-br from-emerald-400 to-blue-500 selected" data-avatar="👤">👤</div>
+            <div class="avatar-option bg-gradient-to-br from-purple-400 to-pink-500" data-avatar="🧑‍🎓">🧑‍🎓</div>
+            <div class="avatar-option bg-gradient-to-br from-yellow-400 to-orange-500" data-avatar="🦸">🦸</div>
+            <div class="avatar-option bg-gradient-to-br from-blue-400 to-purple-500" data-avatar="🤖">🤖</div>
+            <div class="avatar-option bg-gradient-to-br from-pink-400 to-red-500" data-avatar="👨‍🚀">👨‍🚀</div>
+            <div class="avatar-option bg-gradient-to-br from-green-400 to-teal-500" data-avatar="🧙">🧙</div>
+            <div class="avatar-option bg-gradient-to-br from-indigo-400 to-blue-500" data-avatar="🦊">🦊</div>
+            <div class="avatar-option bg-gradient-to-br from-amber-400 to-yellow-500" data-avatar="🐉">🐉</div>
+        </div>
+        <div class="flex justify-center gap-4">
+            <button onclick="confirmAvatar()" class="btn-metro">Tasdiqlash</button>
+            <button onclick="closeAvatarPanel()" class="px-6 py-3 rounded-xl border border-slate-500 text-slate-400 hover:text-white transition">Bekor</button>
+        </div>
+    </div>
+
+    <div class="hud-panel fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden" id="zonePanel" style="width: 500px;">
+        <div class="text-center mb-6">
+            <div class="text-6xl mb-4" id="zoneIcon">📚</div>
+            <h3 class="text-white text-2xl font-bold" id="zoneTitle">Kutubxona</h3>
+            <p class="text-emerald-400" id="zoneDescription">Bu yerda bilim olishingiz mumkin</p>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <button onclick="enterZone('learn')" class="btn-metro">📖 O'rganish</button>
+            <button onclick="enterZone('game')" class="btn-metro">🎮 O'yin</button>
+        </div>
+        <div class="flex justify-center">
+            <button onclick="closeZonePanel()" class="px-6 py-3 rounded-xl border border-slate-500 text-slate-400 hover:text-white transition">Yopish</button>
+        </div>
+    </div>
+
+    <div class="hud-panel fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden" id="multiplayerPanel" style="width: 600px; max-height: 80vh;">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-white font-bold text-xl flex items-center gap-2">
+                <span class="text-emerald-400">🌐</span> Ko'p O'yinchi Rejimi
+            </h3>
+            <button onclick="closeMultiplayerPanel()" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div class="flex gap-2 mb-4 border-b border-slate-700 pb-3">
+            <button onclick="showMultiplayerTab('rooms')" class="multi-tab px-4 py-2 rounded-lg text-sm font-medium bg-emerald-500/20 text-emerald-400" data-mtab="rooms">Xonalar</button>
+            <button onclick="showMultiplayerTab('create')" class="multi-tab px-4 py-2 rounded-lg text-sm font-medium bg-slate-700/50 text-slate-300" data-mtab="create">Xona Yaratish</button>
+            <button onclick="showMultiplayerTab('join')" class="multi-tab px-4 py-2 rounded-lg text-sm font-medium bg-slate-700/50 text-slate-300" data-mtab="join">Kod Bilan Qo'shilish</button>
+        </div>
+        <div id="mp-content" class="overflow-y-auto" style="max-height: 400px;"></div>
+    </div>
+
+    <div class="hud-panel fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 hidden" id="gamePanel" style="width: 600px;">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-white text-2xl font-bold">🎮 Bilim O'yini</h3>
+            <button onclick="closeGame()" class="text-slate-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div id="gameContent"></div>
+    </div>
+
+    <div id="mobileControls" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 hidden">
+        <div class="flex gap-8">
+            <div class="flex flex-col gap-2">
+                <button id="btnUp" class="w-16 h-16 bg-emerald-500/50 rounded-xl flex items-center justify-center text-white text-2xl active:bg-emerald-400/70">▲</button>
+                <div class="flex gap-2">
+                    <button id="btnLeft" class="w-16 h-16 bg-emerald-500/50 rounded-xl flex items-center justify-center text-white text-2xl active:bg-emerald-400/70">◀</button>
+                    <button id="btnDown" class="w-16 h-16 bg-emerald-500/50 rounded-xl flex items-center justify-center text-white text-2xl active:bg-emerald-400/70">▼</button>
+                    <button id="btnRight" class="w-16 h-16 bg-emerald-500/50 rounded-xl flex items-center justify-center text-white text-2xl active:bg-emerald-400/70">▶</button>
+                </div>
+            </div>
+            <button id="btnInteract" class="w-20 h-20 bg-purple-500/50 rounded-full flex items-center justify-center text-white text-xl font-bold active:bg-purple-400/70">E</button>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, player, playerBody, playerHead, playerGlow;
+        let buildings = [], particles = [];
+        let keys = { w: false, a: false, s: false, d: false };
+        let isPointerLocked = false, isDragging = false, lastTouchX = 0, lastTouchY = 0;
+        let cameraAngleX = 0, cameraAngleY = 0.4;
+        let selectedAvatar = '👤';
+        let currentZone = null;
+        let gameScore = 0, gameLives = 3;
+        let messageCount = 0;
+        let xp = 0;
+        let audioContext, sounds = {};
+        let raycaster, mouse;
+        let zoneObjects = [];
+
+        // Multiplayer
+        let socket = null;
+        let mpConnected = false;
+        let mpCurrentRoom = null;
+        let mpCurrentUser = null;
+        let mpPlayers = [];
+        let mpChatHistory = [];
+        let otherPlayerMeshes = [];
+        let moveUpdateTimer = null;
+
+        const cameraSensitivity = 0.003;
+        const cameraDistance = 25;
+        const cameraMinDistance = 10;
+        const cameraMaxDistance = 80;
+        const cameraMinY = 3;
+        const cameraMaxY = 40;
+
+        const zones = [
+            { name: 'Markaziy Maydon', icon: '🏛️', desc: 'Metaversning qalbi', position: { x: 0, z: 0 }, color: 0x4edea3 },
+            { name: 'Kutubxona', icon: '📚', desc: 'Bilim xazinalari', position: { x: -30, z: -20 }, color: 0x8b5cf6 },
+            { name: 'Fanlar Binosi', icon: '🔬', desc: 'Ilmiy tajriba', position: { x: 30, z: -20 }, color: 0x3b82f6 },
+            { name: 'Sport Zal', icon: '🏆', desc: 'Jismoniy tarbiya', position: { x: -30, z: 20 }, color: 0xf59e0b },
+            { name: 'AI Markazi', icon: '🤖', desc: 'Sun\'iy intellekt', position: { x: 30, z: 20 }, color: 0xec4899 },
+            { name: 'Bog\'', icon: '🌳', desc: 'Dam olish zonalari', position: { x: 0, z: 40 }, color: 0x22c55e }
+        ];
+
+        const questions = [
+            { q: "2 + 2 = ?", options: ["3", "4", "5", "6"], correct: 1 },
+            { q: "O'zbekiston poytaxti?", options: ["Samarqand", "Toshkent", "Buxoro", "Farg'ona"], correct: 1 },
+            { q: "Suving qaysi harakat?", options: ["Suyuq", "Qattiq", "Gazsimon", "Plazma"], correct: 0 },
+            { q: "Yerning sun'iy yo'ldoshi?", options: ["Quyosh", "Oy", "Mars", "Venera"], correct: 1 },
+            { q: "Eng katta materik?", options: ["Afrika", "Shimoliy Amerika", "Yevrosiyo", "Antarktida"], correct: 2 }
+        ];
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x0a0a1a, 0.008);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 20, 35);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            setupJoystickButton('btnUp', 'w');
+            setupJoystickButton('btnDown', 's');
+            setupJoystickButton('btnLeft', 'a');
+            setupJoystickButton('btnRight', 'd');
+            document.getElementById('btnInteract')?.addEventListener('touchstart', e => { e.preventDefault(); interactWithZone(); }, { passive: false });
+            document.getElementById('btnInteract')?.addEventListener('mousedown', () => interactWithZone());
+
+            createLighting();
+            createGround();
+            createSkybox();
+            createBuildings();
+            createParticles();
+            createPlayer();
+            createZoneMarkers();
+
+            setupControls();
+
+            initAudio();
+
+            setTimeout(() => {
+                document.getElementById('loadingScreen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').style.display = 'none';
+                }, 500);
+            }, 2500);
+
+            animate();
+        }
+
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                sounds = {
+                    step: (freq = 200, duration = 0.1) => playTone(freq, duration, 'sine', 0.1),
+                    interact: () => playTone(600, 0.15, 'sine', 0.2),
+                    pickup: () => playTone(800, 0.2, 'triangle', 0.15),
+                    ambient: null
+                };
+            } catch (e) {
+                console.warn('Audio not available');
+            }
+        }
+
+        function playTone(freq, duration, type = 'sine', volume = 0.2) {
+            if (!audioContext) return;
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(volume, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            osc.start();
+            osc.stop(audioContext.currentTime + duration);
+        }
+
+        function playStepSound() {
+            if (sounds.step) sounds.step(150 + Math.random() * 50, 0.08);
+        }
+
+        function playInteractSound() {
+            if (sounds.interact) sounds.interact();
+        }
+
+        function createLighting() {
+            const ambient = new THREE.AmbientLight(0x404060, 0.5);
+            scene.add(ambient);
+
+            const sun = new THREE.DirectionalLight(0xffffff, 1);
+            sun.position.set(50, 100, 50);
+            sun.castShadow = true;
+            sun.shadow.mapSize.width = 2048;
+            sun.shadow.mapSize.height = 2048;
+            scene.add(sun);
+
+            const coloredLights = [
+                { color: 0x4edea3, pos: [0, 10, 0] },
+                { color: 0x8b5cf6, pos: [-30, 10, -20] },
+                { color: 0x3b82f6, pos: [30, 10, -20] },
+                { color: 0xf59e0b, pos: [-30, 10, 20] },
+                { color: 0xec4899, pos: [30, 10, 20] }
+            ];
+
+            coloredLights.forEach(l => {
+                const light = new THREE.PointLight(l.color, 2, 50);
+                light.position.set(...l.pos);
+                scene.add(light);
+            });
+        }
+
+        function createGround() {
+            const groundGeo = new THREE.PlaneGeometry(300, 300, 50, 50);
+            const groundMat = new THREE.MeshStandardMaterial({
+                color: 0x1a1a2e,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            scene.add(ground);
+
+            const grid = new THREE.GridHelper(200, 40, 0x4edea3, 0x1a3a2e);
+            grid.position.y = 0.01;
+            scene.add(grid);
+        }
+
+        function createSkybox() {
+            const skyGeo = new THREE.SphereGeometry(200, 32, 32);
+            const skyMat = new THREE.MeshBasicMaterial({
+                color: 0x0a0a1a,
+                side: THREE.BackSide
+            });
+            scene.add(new THREE.Mesh(skyGeo, skyMat));
+        }
+
+        function createBuildings() {
+            zones.forEach((zone, i) => {
+                const buildingGroup = new THREE.Group();
+
+                const height = 8 + Math.random() * 12;
+                const width = 15 + Math.random() * 10;
+
+                const buildingGeo = new THREE.BoxGeometry(width, height, width);
+                const buildingMat = new THREE.MeshStandardMaterial({
+                    color: zone.color,
+                    roughness: 0.3,
+                    metalness: 0.7,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const building = new THREE.Mesh(buildingGeo, buildingMat);
+                building.position.y = height / 2;
+                building.castShadow = true;
+                buildingGroup.add(building);
+
+                const glowGeo = new THREE.BoxGeometry(width + 0.5, height + 0.5, width + 0.5);
+                const glowMat = new THREE.MeshBasicMaterial({
+                    color: zone.color,
+                    transparent: true,
+                    opacity: 0.1,
+                    side: THREE.BackSide
+                });
+                const glow = new THREE.Mesh(glowGeo, glowMat);
+                glow.position.y = height / 2;
+                buildingGroup.add(glow);
+
+                const roofGeo = new THREE.ConeGeometry(width / 2 + 2, 4, 4);
+                const roofMat = new THREE.MeshStandardMaterial({
+                    color: zone.color,
+                    roughness: 0.2,
+                    metalness: 0.8,
+                    emissive: zone.color,
+                    emissiveIntensity: 0.3
+                });
+                const roof = new THREE.Mesh(roofGeo, roofMat);
+                roof.position.y = height + 2;
+                roof.rotation.y = Math.PI / 4;
+                buildingGroup.add(roof);
+
+                const iconGeo = new THREE.SphereGeometry(1.5, 16, 16);
+                const iconMat = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    emissive: zone.color,
+                    emissiveIntensity: 1
+                });
+                const icon = new THREE.Mesh(iconGeo, iconMat);
+                icon.position.y = height + 6;
+                buildingGroup.add(icon);
+
+                buildingGroup.position.set(zone.position.x, 0, zone.position.z);
+                scene.add(buildingGroup);
+                buildings.push({ mesh: buildingGroup, zone });
+
+                for (let j = 0; j < 20; j++) {
+                    const columnGeo = new THREE.CylinderGeometry(0.3, 0.3, height, 8);
+                    const columnMat = new THREE.MeshStandardMaterial({ color: 0x2a2a4a });
+                    const column = new THREE.Mesh(columnGeo, columnMat);
+                    const angle = (j / 20) * Math.PI * 2;
+                    const radius = width / 2 + 1.5;
+                    column.position.set(
+                        Math.cos(angle) * radius,
+                        height / 2,
+                        Math.sin(angle) * radius
+                    );
+                    column.castShadow = true;
+                    buildingGroup.add(column);
+                }
+            });
+        }
+
+        function createParticles() {
+            const particleCount = 2000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = (Math.random() - 0.5) * 300;
+                positions[i * 3 + 1] = Math.random() * 80;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * 300;
+
+                const color = new THREE.Color();
+                color.setHSL(Math.random() * 0.2 + 0.4, 0.8, 0.6);
+                colors[i * 3] = color.r;
+                colors[i * 3 + 1] = color.g;
+                colors[i * 3 + 2] = color.b;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 0.5,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+
+            const particleSystem = new THREE.Points(geometry, material);
+            scene.add(particleSystem);
+            particles.push(particleSystem);
+
+            const geometry2 = new THREE.BufferGeometry();
+            const count2 = 500;
+            const positions2 = new Float32Array(count2 * 3);
+
+            for (let i = 0; i < count2; i++) {
+                positions2[i * 3] = (Math.random() - 0.5) * 200;
+                positions2[i * 3 + 1] = Math.random() * 3;
+                positions2[i * 3 + 2] = (Math.random() - 0.5) * 200;
+            }
+
+            geometry2.setAttribute('position', new THREE.BufferAttribute(positions2, 3));
+            const material2 = new THREE.PointsMaterial({
+                size: 0.8,
+                color: 0x4edea3,
+                transparent: true,
+                opacity: 0.6
+            });
+            const fireflies = new THREE.Points(geometry2, material2);
+            scene.add(fireflies);
+            particles.push(fireflies);
+        }
+
+function createPlayer() {
+            player = new THREE.Group();
+            
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: 0x4edea3,
+                emissive: 0x4edea3,
+                emissiveIntensity: 0.3,
+                roughness: 0.3,
+                metalness: 0.7
+            });
+
+            const cylinder = new THREE.CylinderGeometry(0.5, 0.5, 1.5, 16);
+            playerBody = new THREE.Mesh(cylinder, bodyMat);
+            playerBody.position.y = 1.5;
+            playerBody.castShadow = true;
+            player.add(playerBody);
+
+            const topSphere = new THREE.SphereGeometry(0.5, 16, 16);
+            const topSphereMesh = new THREE.Mesh(topSphere, bodyMat);
+            topSphereMesh.position.y = 2.25;
+            player.add(topSphereMesh);
+
+            const bottomSphere = new THREE.Mesh(topSphere, bodyMat);
+            bottomSphere.position.y = 0.75;
+            player.add(bottomSphere);
+
+            playerHead = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 16, 16),
+                bodyMat
+            );
+            playerHead.position.y = 2.8;
+            playerHead.castShadow = true;
+            player.add(playerHead);
+
+            playerGlow = new THREE.Mesh(
+                new THREE.SphereGeometry(1.0, 16, 16),
+                new THREE.MeshBasicMaterial({
+                    color: 0x4edea3,
+                    transparent: true,
+                    opacity: 0.15
+                })
+            );
+            playerGlow.position.y = 2;
+            player.add(playerGlow);
+
+            const eyeGeo = new THREE.SphereGeometry(0.12, 8, 8);
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+            leftEye.position.set(-0.18, 2.85, 0.4);
+            player.add(leftEye);
+            const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+            rightEye.position.set(0.18, 2.85, 0.4);
+            player.add(rightEye);
+
+            player.position.y = 0;
+            scene.add(player);
+        }
+
+        function createZoneMarkers() {
+            zones.forEach(zone => {
+                const zoneGroup = new THREE.Group();
+                zoneObjects.push(zoneGroup);
+
+                const markerGeo = new THREE.RingGeometry(3, 4, 32);
+                const markerMat = new THREE.MeshBasicMaterial({
+                    color: zone.color,
+                    transparent: true,
+                    opacity: 0.6,
+                    side: THREE.DoubleSide
+                });
+                const marker = new THREE.Mesh(markerGeo, markerMat);
+                marker.rotation.x = -Math.PI / 2;
+                marker.position.set(zone.position.x, 0.1, zone.position.z);
+                marker.userData.zone = zone;
+                zoneGroup.add(marker);
+
+                const pillarGeo = new THREE.CylinderGeometry(0.15, 0.15, 6, 8);
+                const pillarMat = new THREE.MeshBasicMaterial({
+                    color: zone.color,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+                pillar.position.set(zone.position.x, 3, zone.position.z);
+                zoneGroup.add(pillar);
+
+                const topGeo = new THREE.SphereGeometry(0.4, 16, 16);
+                const topMat = new THREE.MeshBasicMaterial({
+                    color: zone.color,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const top = new THREE.Mesh(topGeo, topMat);
+                top.position.set(zone.position.x, 6.5, zone.position.z);
+                zoneGroup.add(top);
+
+                scene.add(zoneGroup);
+            });
+        }
+
+        function setupControls() {
+            document.addEventListener('keydown', e => {
+                const key = e.key.toLowerCase();
+                if (keys.hasOwnProperty(key)) keys[key] = true;
+                if (key === 'e') interactWithZone();
+                if (key === 'escape') exitPointerLock();
+            });
+
+            document.addEventListener('keyup', e => {
+                const key = e.key.toLowerCase();
+                if (keys.hasOwnProperty(key)) keys[key] = false;
+            });
+
+            document.addEventListener('mousemove', e => {
+                if (isPointerLocked) {
+                    cameraAngleX -= e.movementX * cameraSensitivity;
+                    cameraAngleY -= e.movementY * cameraSensitivity;
+                    cameraAngleY = Math.max(0.15, Math.min(1.3, cameraAngleY));
+                } else if (isDragging) {
+                    const deltaX = e.clientX - lastTouchX;
+                    const deltaY = e.clientY - lastTouchY;
+                    cameraAngleX -= deltaX * cameraSensitivity;
+                    cameraAngleY -= deltaY * cameraSensitivity;
+                    cameraAngleY = Math.max(0.15, Math.min(1.3, cameraAngleY));
+                    lastTouchX = e.clientX;
+                    lastTouchY = e.clientY;
+                }
+            });
+
+            renderer.domElement.addEventListener('mousedown', e => {
+                isDragging = true;
+                lastTouchX = e.clientX;
+                lastTouchY = e.clientY;
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            renderer.domElement.addEventListener('wheel', e => {
+                const distance = camera.position.distanceTo(player.position);
+                const newDistance = distance + e.deltaY * 0.05;
+                if (newDistance > cameraMinDistance && newDistance < cameraMaxDistance) {
+                    const direction = new THREE.Vector3().subVectors(player.position, camera.position).normalize();
+                    camera.position.add(direction.multiplyScalar(newDistance - distance));
+                }
+            }, { passive: true });
+
+            renderer.domElement.addEventListener('click', () => {
+                if (!isPointerLocked && !isDragging) {
+                    requestPointerLock();
+                }
+            });
+
+            document.addEventListener('pointerlockchange', () => {
+                isPointerLocked = document.pointerLockElement === renderer.domElement;
+            });
+
+            document.addEventListener('pointerlockerror', () => {
+                console.warn('Pointer lock failed - using fallback controls');
+            });
+
+            window.addEventListener('resize', onWindowResize);
+
+            setupMobileControls();
+        }
+
+        function requestPointerLock() {
+            renderer.domElement.requestPointerLock?.() || showNotification('Sichqonchani bosing');
+        }
+
+        function exitPointerLock() {
+            if (document.pointerLockElement) {
+                document.exitPointerLock?.();
+            }
+            if (isPointerLocked) {
+                isPointerLocked = false;
+            }
+        }
+
+        function setupMobileControls() {
+            const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+            if (isMobile) {
+                document.getElementById('mobileControls')?.classList.remove('hidden');
+            }
+
+            const touchArea = renderer.domElement;
+            
+            touchArea.addEventListener('touchstart', e => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    lastTouchX = e.touches[0].clientX;
+                    lastTouchY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            touchArea.addEventListener('touchmove', e => {
+                if (isDragging && e.touches.length === 1) {
+                    const deltaX = e.touches[0].clientX - lastTouchX;
+                    const deltaY = e.touches[0].clientY - lastTouchY;
+                    cameraAngleX -= deltaX * cameraSensitivity * 0.5;
+                    cameraAngleY -= deltaY * cameraSensitivity * 0.5;
+                    cameraAngleY = Math.max(0.15, Math.min(1.3, cameraAngleY));
+                    lastTouchX = e.touches[0].clientX;
+                    lastTouchY = e.touches[0].clientY;
+                }
+            }, { passive: true });
+
+            touchArea.addEventListener('touchend', () => {
+                isDragging = false;
+            }, { passive: true });
+        }
+
+        function setupJoystickButton(btnId, key) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            
+            btn.addEventListener('touchstart', e => {
+                e.preventDefault();
+                keys[key] = true;
+            }, { passive: false });
+            
+            btn.addEventListener('touchend', e => {
+                e.preventDefault();
+                keys[key] = false;
+            }, { passive: false });
+            
+            btn.addEventListener('mousedown', () => keys[key] = true);
+            btn.addEventListener('mouseup', () => keys[key] = false);
+            btn.addEventListener('mouseleave', () => keys[key] = false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+function animate() {
+            requestAnimationFrame(animate);
+
+            const speed = 0.25;
+            const direction = new THREE.Vector3();
+            let isMoving = false;
+
+            if (keys.w) { direction.z -= 1; isMoving = true; }
+            if (keys.s) { direction.z += 1; isMoving = true; }
+            if (keys.a) { direction.x -= 1; isMoving = true; }
+            if (keys.d) { direction.x += 1; isMoving = true; }
+
+            if (direction.length() > 0) {
+                direction.normalize();
+                direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngleX + Math.PI);
+                player.position.add(direction.multiplyScalar(speed));
+                player.position.x = Math.max(-140, Math.min(140, player.position.x));
+                player.position.z = Math.max(-140, Math.min(140, player.position.z));
+                player.rotation.y = Math.atan2(direction.x, direction.z);
+
+                if (Math.random() > 0.85) playStepSound();
+            }
+
+            if (moveUpdateTimer === null) {
+                moveUpdateTimer = setInterval(sendMpMoveUpdate, 100);
+            }
+
+            checkZoneProximity();
+            updateMinimap();
+            updateOtherPlayers();
+
+            const cameraDistance = 25;
+            camera.position.x = player.position.x + Math.sin(cameraAngleX) * cameraDistance * Math.cos(cameraAngleY);
+            camera.position.z = player.position.z + Math.cos(cameraAngleX) * cameraDistance * Math.cos(cameraAngleY);
+            camera.position.y = player.position.y + Math.sin(cameraAngleY) * cameraDistance + 5;
+            camera.position.y = Math.max(cameraMinY, Math.min(cameraMaxY, camera.position.y));
+            camera.lookAt(player.position.x, player.position.y + 1.5, player.position.z);
+
+            const time = Date.now() * 0.001;
+
+            particles.forEach((p, i) => {
+                p.rotation.y = time * 0.05 * (i === 0 ? 1 : -1);
+                if (i === 1) {
+                    const positions = p.geometry.attributes.position.array;
+                    for (let j = 0; j < positions.length; j += 3) {
+                        positions[j + 1] += Math.sin(time + j * 0.1) * 0.005;
+                    }
+                    p.geometry.attributes.position.needsUpdate = true;
+                }
+            });
+
+            buildings.forEach(b => {
+                b.mesh.children.forEach(c => {
+                    if (c.material && c.material.emissiveIntensity !== undefined) {
+                        c.material.emissiveIntensity = 0.3 + Math.sin(time * 2) * 0.15;
+                    }
+                });
+            });
+
+            if (playerGlow) {
+                playerGlow.scale.setScalar(1 + Math.sin(time * 3) * 0.1);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function checkZoneProximity() {
+            let nearestZone = null;
+            let nearestDist = Infinity;
+
+            zones.forEach(zone => {
+                const dist = new THREE.Vector3(zone.position.x, 0, zone.position.z).distanceTo(player.position);
+                if (dist < 12 && dist < nearestDist) {
+                    nearestDist = dist;
+                    nearestZone = zone;
+                }
+            });
+
+            if (nearestZone !== currentZone) {
+                currentZone = nearestZone;
+                document.getElementById('currentZone').textContent = currentZone?.name || 'Markaziy Maydon';
+                document.getElementById('zoneDesc').textContent = currentZone?.desc || 'Metaversning qalbi';
+            }
+        }
+
+        function updateMinimap() {
+            const mapSize = 150;
+            const worldSize = 280;
+            const playerDot = document.getElementById('minimapPlayer');
+            if (!playerDot) return;
+            const px = (player.position.x / worldSize + 0.5) * mapSize;
+            const pz = (player.position.z / worldSize + 0.5) * mapSize;
+            playerDot.style.left = px + 'px';
+            playerDot.style.top = pz + 'px';
+            playerDot.style.transform = `rotate(${-cameraAngleX}rad)`;
+        }
+
+        function interactWithZone() {
+            if (audioContext && audioContext.state === 'suspended') audioContext.resume();
+            if (currentZone) {
+                playInteractSound();
+                showZonePanel(currentZone);
+            } else {
+                raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const intersects = raycaster.intersectObjects(zoneObjects, true);
+                if (intersects.length > 0) {
+                    const zone = intersects[0].object.userData.zone || intersects[0].object.parent?.userData?.zone;
+                    if (zone) {
+                        playInteractSound();
+                        showZonePanel(zone);
+                    }
+                }
+            }
+        }
+
+        function showZonePanel(zone) {
+            document.getElementById('zoneIcon').textContent = zone.icon;
+            document.getElementById('zoneTitle').textContent = zone.name;
+            document.getElementById('zoneDescription').textContent = zone.desc;
+            document.getElementById('zonePanel').classList.remove('hidden');
+            addXP(10);
+        }
+
+        function closeZonePanel() {
+            document.getElementById('zonePanel').classList.add('hidden');
+        }
+
+        function enterZone(action) {
+            closeZonePanel();
+            if (action === 'learn') {
+                window.location.href = '/index.html#/' + currentZone.name.toLowerCase().replace(' ', '-');
+            } else if (action === 'quiz') {
+                window.location.href = '/index.html#/quizzes';
+            } else if (action === 'game') {
+                startGame();
+            }
+        }
+
+        function startGame() {
+            document.getElementById('gamePanel').classList.remove('hidden');
+            document.getElementById('gameContent').innerHTML = `
+                <div class="text-center mb-6">
+                    <p class="text-slate-300 mb-4" id="gameQuestion">Savol yuklanmoqda...</p>
+                    <div class="grid grid-cols-2 gap-4" id="gameOptions"></div>
+                </div>
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-slate-700">
+                    <div class="text-emerald-400">🏆 Ball: <span id="gameScore">0</span></div>
+                    <div class="text-yellow-400">❤️ Hayot: <span id="gameLives">3</span></div>
+                </div>
+            `;
+            gameScore = 0;
+            gameLives = 3;
+            updateGameUI();
+            nextQuestion();
+        }
+
+        function closeGame() {
+            document.getElementById('gamePanel').classList.add('hidden');
+        }
+
+        function nextQuestion() {
+            if (gameLives <= 0) {
+                endGame();
+                return;
+            }
+
+            const q = questions[Math.floor(Math.random() * questions.length)];
+            document.getElementById('gameQuestion').textContent = q.q;
+            const optionsDiv = document.getElementById('gameOptions');
+            optionsDiv.innerHTML = '';
+
+            q.options.forEach((opt, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-metro';
+                btn.textContent = opt;
+                btn.onclick = () => checkAnswer(i, q.correct);
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selected, correct) {
+            if (selected === correct) {
+                gameScore += 10;
+                addXP(5);
+            } else {
+                gameLives--;
+            }
+            updateGameUI();
+            setTimeout(nextQuestion, 500);
+        }
+
+        function updateGameUI() {
+            document.getElementById('gameScore').textContent = gameScore;
+            document.getElementById('gameLives').textContent = gameLives;
+        }
+
+        function endGame() {
+            document.getElementById('gamePanel').classList.add('hidden');
+            addXP(gameScore);
+            showNotification(`🎮 O'yin tugadi! +${gameScore} XP`);
+        }
+
+        function addXP(amount) {
+            xp += amount;
+            const progress = (xp % 100);
+            document.getElementById('xpBar').style.width = progress + '%';
+            document.getElementById('xpDisplay').textContent = `${progress} / 100 XP`;
+
+            if (xp >= 100) {
+                const level = Math.floor(xp / 100) + 1;
+                document.getElementById('playerRole').textContent = `⭐ Daraja ${level}`;
+                showNotification(`🏆 Daraja oshdi! Siz ${level}-darajadasiz!`);
+            }
+        }
+
+        function showNotification(message) {
+            const notif = document.createElement('div');
+            notif.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/90 border border-emerald-400 rounded-xl px-8 py-4 text-white text-xl font-bold z-50 animate-bounce';
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 3000);
+        }
+
+        function toggleMiniMap() {
+            document.getElementById('minimapPanel').classList.toggle('hidden');
+        }
+
+        function toggleSocial() {
+            document.getElementById('socialPanel').classList.toggle('hidden');
+            const inRoom = mpCurrentRoom !== null;
+            const roomInfoEl = document.getElementById('mp-room-info');
+            const leaveBtnEl = document.getElementById('mp-leave-btn');
+            if (roomInfoEl) roomInfoEl.classList.toggle('hidden', !inRoom);
+            if (leaveBtnEl) leaveBtnEl.classList.toggle('hidden', !inRoom);
+            if (inRoom) {
+                renderMpPlayers();
+            }
+        }
+
+        function toggleAchievements() {
+            document.getElementById('achievementPanel').classList.toggle('hidden');
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            if (mpCurrentRoom) {
+                sendMpChatMessage(message);
+            } else {
+                const chatDiv = document.getElementById('chatMessages');
+                const bubble = document.createElement('div');
+                bubble.className = 'chat-bubble';
+                bubble.innerHTML = `
+                    <div class="text-xs text-emerald-400 font-bold">${selectedAvatar} Siz</div>
+                    <div class="text-slate-300 text-sm mt-1">${escHtml(message)}</div>
+                `;
+                chatDiv.appendChild(bubble);
+                chatDiv.scrollTop = chatDiv.scrollHeight;
+
+                setTimeout(() => {
+                    const reply = document.createElement('div');
+                    reply.className = 'chat-bubble';
+                    const replies = [
+                        'Zo\'r! Davom eting!',
+                        'Bu juda qiziq!',
+                        'Yaxshi savol!',
+                        'Rahmat! 👍'
+                    ];
+                    reply.innerHTML = `
+                        <div class="text-xs text-purple-400 font-bold">🤖 AI Bot</div>
+                        <div class="text-slate-300 text-sm mt-1">${replies[Math.floor(Math.random() * replies.length)]}</div>
+                    `;
+                    chatDiv.appendChild(reply);
+                    chatDiv.scrollTop = chatDiv.scrollHeight;
+                }, 1000);
+            }
+
+            input.value = '';
+
+            messageCount++;
+            if (messageCount === 1) showNotification('🌟 "Suhbatxo\'r" yutug\'ini qo\'lga kiritdingiz!');
+        }
+
+        function showAvatarPanel() {
+            document.getElementById('avatarPanel').classList.remove('hidden');
+        }
+
+        function confirmAvatar() {
+            document.getElementById('playerAvatar').textContent = selectedAvatar;
+            closeAvatarPanel();
+        }
+
+        function closeAvatarPanel() {
+            document.getElementById('avatarPanel').classList.add('hidden');
+        }
+
+        document.querySelectorAll('.avatar-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                document.querySelectorAll('.avatar-option').forEach(o => o.classList.remove('selected'));
+                opt.classList.add('selected');
+                selectedAvatar = opt.dataset.avatar;
+            });
+        });
+
+        document.getElementById('chatInput')?.addEventListener('keypress', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Multiplayer Functions
+        function initMultiplayer() {
+            const token = Auth.getToken();
+            if (!token) return;
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            socket = io(window.location.origin, {
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                socket.emit('authenticate', {
+                    token: token,
+                    avatar: selectedAvatar
+                });
+            });
+
+            socket.on('authenticated', (data) => {
+                if (data.success) {
+                    mpConnected = true;
+                    mpCurrentUser = data.user;
+                    updateMpStatus();
+                } else {
+                    mpConnected = false;
+                }
+            });
+
+            socket.on('room-joined', (data) => {
+                mpCurrentRoom = data.room.code;
+                mpPlayers = data.room.players || [];
+                mpChatHistory = data.room.chatHistory || [];
+                renderMpPlayers();
+                renderMpChatHistory();
+                showNotification(`✅ ${data.room.code} xonasiga qo'shildingiz!`);
+                closeMultiplayerPanel();
+                updateMpStatus();
+            });
+
+            socket.on('player-joined', (data) => {
+                if (data.player && data.player.id !== mpCurrentUser?.id) {
+                    mpPlayers.push(data.player);
+                    renderMpPlayers();
+                    addMpSystemMessage(`${data.player.name} xonaga kirdi`);
+                }
+            });
+
+            socket.on('player-left', (data) => {
+                const leaving = mpPlayers.find(p => p.id === data.playerId);
+                if (leaving) {
+                    addMpSystemMessage(`${leaving.name} xonadan chiqdi`);
+                }
+                mpPlayers = mpPlayers.filter(p => p.id !== data.playerId);
+                renderMpPlayers();
+                removeOtherPlayer(data.playerId);
+            });
+
+            socket.on('player-moved', (data) => {
+                const p = mpPlayers.find(p => p.id === data.playerId);
+                if (p) p.position = data.position;
+            });
+
+            socket.on('chat-message', (data) => {
+                addMpChatMessage(data);
+            });
+
+            socket.on('room-left', () => {
+                mpCurrentRoom = null;
+                mpPlayers = [];
+                mpChatHistory = [];
+                renderMpPlayers();
+                removeAllOtherPlayers();
+                updateMpStatus();
+                showNotification('Xonadan chiqdingiz');
+            });
+
+            socket.on('teacher-updated', (data) => {
+                addMpSystemMessage(`O'qituvchi: ${data.teacherName}`);
+            });
+
+            socket.on('disconnect', () => {
+                mpConnected = false;
+                updateMpStatus();
+            });
+
+            socket.on('error', (data) => {
+                showNotification(`Xato: ${data.message}`);
+            });
+        }
+
+        function updateMpStatus() {
+            const statusEl = document.getElementById('mp-online-status');
+            if (statusEl) {
+                statusEl.innerHTML = mpConnected
+                    ? `<span class="w-2 h-2 rounded-full bg-emerald-400 pulse"></span> <span class="text-emerald-400">Online</span>${mpCurrentRoom ? ` · Xona: ${mpCurrentRoom}` : ''}`
+                    : `<span class="w-2 h-2 rounded-full bg-slate-500"></span> <span class="text-slate-400">Offline</span>`;
+            }
+        }
+
+        function toggleMultiplayerPanel() {
+            const panel = document.getElementById('multiplayerPanel');
+            panel.classList.toggle('hidden');
+            if (!panel.classList.contains('hidden')) {
+                showMultiplayerTab('rooms');
+            }
+        }
+
+        function closeMultiplayerPanel() {
+            document.getElementById('multiplayerPanel').classList.add('hidden');
+        }
+
+        function showMultiplayerTab(tab) {
+            document.querySelectorAll('.multi-tab').forEach(t => {
+                const isActive = t.dataset.mtab === tab;
+                t.classList.toggle('bg-emerald-500/20', isActive);
+                t.classList.toggle('text-emerald-400', isActive);
+                t.classList.toggle('bg-slate-700/50', !isActive);
+                t.classList.toggle('text-slate-300', !isActive);
+            });
+
+            const content = document.getElementById('mp-content');
+            if (tab === 'rooms') {
+                loadRoomList();
+            } else if (tab === 'create') {
+                showCreateRoomForm();
+            } else if (tab === 'join') {
+                showJoinRoomForm();
+            }
+        }
+
+        async function loadRoomList() {
+            const content = document.getElementById('mp-content');
+            content.innerHTML = '<div class="text-center py-8 text-slate-400">Yuklanmoqda...</div>';
+
+            try {
+                const res = await API.rooms.list();
+                const rooms = res.data || [];
+
+                if (rooms.length === 0) {
+                    content.innerHTML = '<div class="text-center py-8 text-slate-500">Hozircha xonalar yo\'q. Birinchi bo\'lib yarating!</div>';
+                    return;
+                }
+
+                content.innerHTML = `
+                    <div class="space-y-3">
+                        ${rooms.map(room => `
+                            <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700 flex items-center justify-between">
+                                <div>
+                                    <div class="text-white font-semibold">${escHtml(room.name)}</div>
+                                    <div class="text-xs text-slate-400 mt-1">
+                                        ${room.teacherName ? `O'qituvchi: ${escHtml(room.teacherName)}` : ''}
+                                        ${room.subject ? ` · ${escHtml(room.subject)}` : ''}
+                                    </div>
+                                    <div class="text-xs text-emerald-400 mt-1">Kod: <span class="font-mono font-bold">${room.code}</span></div>
+                                </div>
+                                <div class="flex flex-col items-end gap-2">
+                                    ${!room.isActive ? '<span class="text-xs text-red-400">Yopiq</span>' : ''}
+                                    <button onclick="joinRoomByCode('${room.code}')" class="btn-metro text-xs px-4 py-2 ${!room.isActive ? 'opacity-50 cursor-not-allowed' : ''}" ${!room.isActive ? 'disabled' : ''}>
+                                        Qo'shilish
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } catch (err) {
+                content.innerHTML = `<div class="text-center py-8 text-red-400">Xatolik: ${escHtml(err.message)}</div>`;
+            }
+        }
+
+        function showCreateRoomForm() {
+            const content = document.getElementById('mp-content');
+            const user = Auth.getUser();
+            const isTeacher = user && (user.role === 'teacher' || user.role === 'admin');
+
+            content.innerHTML = `
+                <div class="space-y-4">
+                    ${!isTeacher ? '<div class="text-amber-400 text-sm mb-2">⚠️ Faqat o\'qituvchilar xona yaratishi mumkin</div>' : ''}
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Xona nomi</label>
+                        <input type="text" id="mp-room-name" placeholder="Masalan: 7-A sinf fizika" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Fan (ixtiyoriy)</label>
+                        <input type="text" id="mp-room-subject" placeholder="Masalan: Matematika" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Tavsif (ixtiyoriy)</label>
+                        <textarea id="mp-room-desc" rows="2" placeholder="Xona haqida qisqacha" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-slate-400 mb-1">Maksimal o'yinchilar</label>
+                        <input type="number" id="mp-room-max" value="20" min="2" max="50" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white text-sm">
+                    </div>
+                    <button onclick="createRoom()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-semibold">
+                        Xona Yaratish
+                    </button>
+                </div>
+            `;
+        }
+
+        function showJoinRoomForm() {
+            const content = document.getElementById('mp-content');
+            content.innerHTML = `
+                <div class="space-y-4">
+                    <div class="text-center mb-4">
+                        <div class="text-4xl mb-2">🔑</div>
+                        <p class="text-slate-400 text-sm">6 xonali kodni kiriting</p>
+                    </div>
+                    <div>
+                        <input type="text" id="mp-join-code" placeholder="Kod: XXXXXX" maxlength="6"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white text-center text-2xl font-mono tracking-widest uppercase"
+                            oninput="this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '')">
+                    </div>
+                    <button onclick="joinRoomByCodeInput()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-semibold">
+                        Xonaga Qo'shilish
+                    </button>
+                </div>
+            `;
+        }
+
+        async function createRoom() {
+            const name = document.getElementById('mp-room-name').value.trim();
+            const subject = document.getElementById('mp-room-subject').value.trim();
+            const description = document.getElementById('mp-room-desc').value.trim();
+            const maxPlayers = parseInt(document.getElementById('mp-room-max').value, 10) || 20;
+
+            if (!name) {
+                showNotification('Xona nomi kerak!');
+                return;
+            }
+
+            try {
+                const res = await API.rooms.create({ name, subject, description, maxPlayers });
+                showNotification(`Xona yaratildi! Kod: ${res.data.code}`);
+                if (socket && mpConnected) {
+                    socket.emit('join-room', { code: res.data.code });
+                }
+            } catch (err) {
+                showNotification(`Xato: ${err.message}`);
+            }
+        }
+
+        function joinRoomByCode(code) {
+            if (socket && mpConnected) {
+                socket.emit('join-room', { code });
+            } else {
+                showNotification('Aloqa yo\'q, qayta urinib ko\'ring');
+            }
+        }
+
+        function joinRoomByCodeInput() {
+            const code = document.getElementById('mp-join-code').value.trim().toUpperCase();
+            if (!code || code.length !== 6) {
+                showNotification('6 xonali kod kiriting');
+                return;
+            }
+            joinRoomByCode(code);
+        }
+
+        function leaveRoom() {
+            if (socket && mpCurrentRoom) {
+                socket.emit('leave-room');
+            }
+        }
+
+        function renderMpPlayers() {
+            const container = document.getElementById('onlineUsers');
+            if (!container) return;
+
+            const isInRoom = mpCurrentRoom !== null;
+            container.innerHTML = mpPlayers.map(p => {
+                const isMe = p.id === mpCurrentUser?.id;
+                return `
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-lg border-2 ${isMe ? 'border-emerald-400' : 'border-slate-500'}" title="${escHtml(p.name)}${isMe ? ' (siz)' : ''}">
+                        ${p.avatar || '👤'}
+                    </div>
+                `;
+            }).join('');
+
+            if (isInRoom) {
+                const roomInfo = document.getElementById('mp-room-info');
+                if (roomInfo) roomInfo.textContent = `Xona: ${mpCurrentRoom} · ${mpPlayers.length} o'yinchi`;
+            }
+        }
+
+        function addMpSystemMessage(text) {
+            const chatDiv = document.getElementById('chatMessages');
+            if (!chatDiv) return;
+            const msg = document.createElement('div');
+            msg.className = 'chat-bubble bg-slate-800/50';
+            msg.innerHTML = `<div class="text-xs text-slate-400 font-bold">ℹ️ Sistema</div><div class="text-slate-400 text-sm mt-1">${escHtml(text)}</div>`;
+            chatDiv.appendChild(msg);
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+
+        function addMpChatMessage(data) {
+            const chatDiv = document.getElementById('chatMessages');
+            if (!chatDiv) return;
+            const msg = document.createElement('div');
+            msg.className = 'chat-bubble';
+            const isMe = data.senderId === mpCurrentUser?.id;
+            msg.innerHTML = `
+                <div class="text-xs ${isMe ? 'text-emerald-400' : 'text-purple-400'} font-bold">${data.senderAvatar || '👤'} ${escHtml(data.senderName)}${isMe ? ' (siz)' : ''}</div>
+                <div class="text-slate-300 text-sm mt-1">${escHtml(data.content)}</div>
+            `;
+            chatDiv.appendChild(msg);
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+
+        function renderMpChatHistory() {
+            const chatDiv = document.getElementById('chatMessages');
+            if (!chatDiv) return;
+            chatDiv.innerHTML = '';
+            mpChatHistory.forEach(msg => addMpChatMessage(msg));
+        }
+
+        function sendMpChatMessage(content) {
+            if (socket && mpCurrentRoom && content.trim()) {
+                socket.emit('chat-message', { content: content.trim() });
+            }
+        }
+
+        function createOtherPlayerMesh(player) {
+            if (!scene) return null;
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0x8b5cf6,
+                emissive: 0x8b5cf6,
+                emissiveIntensity: 0.3,
+                roughness: 0.3,
+                metalness: 0.7
+            });
+            const body = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.5, 16), mat);
+            body.position.y = 1.5;
+            group.add(body);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 16), mat);
+            head.position.y = 2.8;
+            group.add(head);
+            const glow = new THREE.Mesh(
+                new THREE.SphereGeometry(1.0, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.15 })
+            );
+            glow.position.y = 2;
+            group.add(glow);
+            group.position.set(player.position?.x || 0, 0, player.position?.z || 0);
+            group.userData.playerId = player.id;
+            group.userData.nameLabel = player.name;
+            scene.add(group);
+            return group;
+        }
+
+        function updateOtherPlayers() {
+            if (!mpCurrentRoom || !mpPlayers.length) return;
+            mpPlayers.forEach(p => {
+                if (p.id === mpCurrentUser?.id) return;
+                let mesh = otherPlayerMeshes.find(m => m.userData.playerId === p.id);
+                if (!mesh && p.position) {
+                    mesh = createOtherPlayerMesh(p);
+                    if (mesh) otherPlayerMeshes.push(mesh);
+                }
+                if (mesh && p.position) {
+                    mesh.position.x += (p.position.x - mesh.position.x) * 0.1;
+                    mesh.position.z += (p.position.z - mesh.position.z) * 0.1;
+                }
+            });
+        }
+
+        function removeOtherPlayer(playerId) {
+            const idx = otherPlayerMeshes.findIndex(m => m.userData.playerId === playerId);
+            if (idx !== -1) {
+                scene.remove(otherPlayerMeshes[idx]);
+                otherPlayerMeshes.splice(idx, 1);
+            }
+        }
+
+        function removeAllOtherPlayers() {
+            otherPlayerMeshes.forEach(m => scene.remove(m));
+            otherPlayerMeshes = [];
+        }
+
+        function sendMpMoveUpdate() {
+            if (socket && mpCurrentRoom && player) {
+                socket.emit('player-move', {
+                    position: {
+                        x: Math.round(player.position.x * 10) / 10,
+                        z: Math.round(player.position.z * 10) / 10
+                    }
+                });
+            }
+        }
+
+        function escHtml(str) {
+            if (str == null) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function waitForThree(callback) {
+            if (typeof THREE !== 'undefined') {
+                callback();
+            } else {
+                setTimeout(() => waitForThree(callback), 50);
+            }
+        }
+
+        function waitForAuth(callback) {
+            if (typeof Auth !== 'undefined') {
+                callback();
+            } else {
+                setTimeout(() => waitForAuth(callback), 50);
+            }
+        }
+
+        waitForThree(() => {
+            waitForAuth(() => {
+                init();
+                initMultiplayer();
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const roomCode = urlParams.get('room');
+                if (roomCode && socket) {
+                    const checkAndJoin = setInterval(() => {
+                        if (mpConnected) {
+                            clearInterval(checkAndJoin);
+                            joinRoomByCode(roomCode.toUpperCase());
+                        }
+                    }, 100);
+                    setTimeout(() => clearInterval(checkAndJoin), 10000);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
