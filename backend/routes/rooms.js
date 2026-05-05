@@ -1,22 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
+const Room = require('../lib/Room');
 const { protect } = require('../middleware/auth');
 const requireDb = require('../middleware/requireDb');
 
 router.use(requireDb);
-
-const Room = mongoose.models.Room || mongoose.model('Room', new mongoose.Schema({
-  name: { type: String, required: true, unique: true },
-  code: { type: String, required: true, unique: true },
-  teacherId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  teacherName: String,
-  maxPlayers: { type: Number, default: 20 },
-  isActive: { type: Boolean, default: true },
-  subject: { type: String, default: '' },
-  description: { type: String, default: '' },
-  createdAt: { type: Date, default: Date.now }
-}));
 
 function generateRoomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -30,14 +18,11 @@ function generateRoomCode() {
 router.get('/', protect, async (req, res, next) => {
   try {
     const { active } = req.query;
-    const filter = {};
+    const filter = { limit: 50 };
     if (active !== undefined) {
       filter.isActive = active === 'true';
     }
-    const rooms = await Room.find(filter)
-      .select('name code teacherName maxPlayers subject description createdAt isActive')
-      .sort({ createdAt: -1 })
-      .limit(50);
+    const rooms = Room.find(filter);
     res.json({ success: true, data: rooms });
   } catch (err) {
     next(err);
@@ -46,7 +31,7 @@ router.get('/', protect, async (req, res, next) => {
 
 router.get('/:code', protect, async (req, res, next) => {
   try {
-    const room = await Room.findOne({ code: req.params.code.toUpperCase() });
+    const room = Room.findOne({ code: req.params.code.toUpperCase() });
     if (!room) {
       return res.status(404).json({ success: false, message: 'Xona topilmadi' });
     }
@@ -74,10 +59,10 @@ router.post('/', protect, async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Xona nomi kamida 2 ta belgi bo\'lishi kerak' });
     }
     const code = generateRoomCode();
-    const room = await Room.create({
+    const room = Room.create({
       name: name.trim(),
       code,
-      teacherId: req.user.id,
+      teacherId: parseInt(req.user.id),
       teacherName: `${req.user.firstName} ${req.user.lastName}`,
       subject: subject || '',
       description: description || '',
@@ -102,7 +87,7 @@ router.post('/', protect, async (req, res, next) => {
 
 router.put('/:code', protect, async (req, res, next) => {
   try {
-    const room = await Room.findOne({ code: req.params.code.toUpperCase() });
+    const room = Room.findOne({ code: req.params.code.toUpperCase() });
     if (!room) {
       return res.status(404).json({ success: false, message: 'Xona topilmadi' });
     }
@@ -110,13 +95,14 @@ router.put('/:code', protect, async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Faqat xona egasi o\'zgartirish qilishi mumkin' });
     }
     const { name, isActive, maxPlayers, subject, description } = req.body;
-    if (name) room.name = name.trim();
-    if (isActive !== undefined) room.isActive = Boolean(isActive);
-    if (maxPlayers) room.maxPlayers = Math.min(Math.max(parseInt(maxPlayers, 10), 2), 50);
-    if (subject !== undefined) room.subject = subject;
-    if (description !== undefined) room.description = description;
-    await room.save();
-    res.json({ success: true, data: { name: room.name, isActive: room.isActive, maxPlayers: room.maxPlayers } });
+    const updated = Room.update(req.params.code.toUpperCase(), {
+      name: name ? name.trim() : undefined,
+      isActive,
+      maxPlayers,
+      subject,
+      description
+    });
+    res.json({ success: true, data: { name: updated.name, isActive: updated.isActive, maxPlayers: updated.maxPlayers } });
   } catch (err) {
     next(err);
   }
@@ -124,14 +110,14 @@ router.put('/:code', protect, async (req, res, next) => {
 
 router.delete('/:code', protect, async (req, res, next) => {
   try {
-    const room = await Room.findOne({ code: req.params.code.toUpperCase() });
+    const room = Room.findOne({ code: req.params.code.toUpperCase() });
     if (!room) {
       return res.status(404).json({ success: false, message: 'Xona topilmadi' });
     }
     if (room.teacherId.toString() !== req.user.id.toString()) {
       return res.status(403).json({ success: false, message: 'Faqat xona egasi o\'chirishi mumkin' });
     }
-    await room.deleteOne();
+    Room.delete(req.params.code.toUpperCase());
     res.json({ success: true, message: 'Xona o\'chirildi' });
   } catch (err) {
     next(err);

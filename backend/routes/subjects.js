@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
-const Subject = require('../models/Subject');
+const Subject = require('../lib/Subject');
 const { protect, authorize } = require('../middleware/auth');
 const requireDb = require('../middleware/requireDb');
 
@@ -18,13 +18,10 @@ const handleValidation = (req, res, next) => {
   next();
 };
 
-// Barcha fanlar
 router.get('/', async (req, res, next) => {
   try {
-    const subjects = await Subject.find({ status: 'active' })
-      .select('-lessons.content')
-      .sort('name');
-
+    const subjects = Subject.find({ status: 'active' });
+    
     res.json({
       success: true,
       count: subjects.length,
@@ -35,10 +32,9 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// Bitta fan + darslari
 router.get('/:id', protect, async (req, res, next) => {
   try {
-    const subject = await Subject.findById(req.params.id).populate('prerequisites', 'name nameUz');
+    const subject = Subject.findById(req.params.id);
     if (!subject) {
       return res.status(404).json({ success: false, message: 'Fan topilmadi' });
     }
@@ -48,7 +44,6 @@ router.get('/:id', protect, async (req, res, next) => {
   }
 });
 
-// Yangi fan (teacher/admin)
 router.post(
   '/',
   protect,
@@ -61,7 +56,7 @@ router.post(
   handleValidation,
   async (req, res, next) => {
     try {
-      const subject = await Subject.create({ ...req.body, createdBy: req.user.id });
+      const subject = Subject.create({ ...req.body, createdBy: parseInt(req.user.id) });
       res.status(201).json({ success: true, data: subject });
     } catch (err) {
       next(err);

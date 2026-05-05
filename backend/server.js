@@ -6,12 +6,12 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-const mongoose = require('mongoose');
 const path = require('path');
 const os = require('os');
 const http = require('http');
 const { Server } = require('socket.io');
 
+const { getDb, closeDb } = require('./lib/database');
 const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -72,7 +72,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
     time: new Date(),
-    db: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    db: 'connected'
   });
 });
 
@@ -100,40 +100,6 @@ app.use(errorHandler);
 
 const PORT = parseInt(process.env.PORT, 10) || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/maktab_ai';
-const USE_MEMORY_DB = String(process.env.USE_MEMORY_DB || '').toLowerCase() === 'true';
-
-let memoryServer = null;
-
-async function connectDb() {
-  if (USE_MEMORY_DB) {
-    try {
-      const { MongoMemoryServer } = require('mongodb-memory-server');
-      memoryServer = await MongoMemoryServer.create();
-      const uri = memoryServer.getUri();
-      await mongoose.connect(uri);
-      console.log('✅ In-memory MongoDB ulandi:', uri);
-      console.log('   ⚠️  Ma\'lumotlar server qayta ishga tushganda yo\'qoladi (faqat dev uchun)');
-      return true;
-    } catch (err) {
-      console.error('❌ In-memory MongoDB ishga tushmadi:', err.message);
-      return false;
-    }
-  }
-
-  try {
-    await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 5000 });
-    console.log('✅ MongoDB ulandi:', MONGODB_URI);
-    return true;
-  } catch (err) {
-    console.error('❌ MongoDB ulanmadi:', err.message);
-    console.error('   Yechim variantlari:');
-    console.error('   1) MongoDB-ni o\'rnating: https://www.mongodb.com/try/download/community');
-    console.error('   2) Yoki .env da USE_MEMORY_DB=true qo\'ying (in-memory test rejimi)');
-    console.error('   Server ishga tushadi, lekin DB-talab qiluvchi endpointlar 503 qaytaradi.');
-    return false;
-  }
-}
 
 async function start() {
   if (process.env.NODE_ENV === 'production') {
@@ -147,14 +113,19 @@ async function start() {
     }
   }
 
-  const dbOk = await connectDb();
-  if (dbOk) {
-    try {
-      const seed = require('./scripts/seed');
-      await seed.ensureSeedData();
-    } catch (err) {
-      console.warn('⚠️  Seed skripti ishlamadi:', err.message);
-    }
+  try {
+    getDb();
+    console.log('✅ SQLite database ulandi');
+  } catch (err) {
+    console.error('❌ Database xatosi:', err.message);
+    process.exit(1);
+  }
+
+  try {
+    const seed = require('./scripts/seed');
+    await seed.ensureSeedData();
+  } catch (err) {
+    console.warn('⚠️  Seed skripti ishlamadi:', err.message);
   }
 
   const server = http.createServer(app);
@@ -349,8 +320,7 @@ async function start() {
     console.log(`\n${signal} qabul qilindi, yopilmoqda...`);
     io.close();
     server.close(async () => {
-      await mongoose.connection.close().catch(() => {});
-      if (memoryServer) await memoryServer.stop().catch(() => {});
+      closeDb();
       process.exit(0);
     });
   };

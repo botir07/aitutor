@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const User = require('../lib/User');
 
 exports.protect = async (req, res, next) => {
   let token;
@@ -17,7 +17,7 @@ exports.protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = User.findById(decoded.id);
 
     if (!user || !user.isActive) {
       return res.status(401).json({
@@ -31,7 +31,7 @@ exports.protect = async (req, res, next) => {
   } catch (err) {
     return res.status(401).json({
       success: false,
-      message: 'Token yaroqsiz yoki muddati o\'tgan'
+      message: "Token yaroqsiz yoki muddati o'tgan"
     });
   }
 };

@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
-const User = require('../models/User');
+const User = require('../lib/User');
 const { protect } = require('../middleware/auth');
 const requireDb = require('../middleware/requireDb');
 
@@ -19,7 +19,7 @@ const handleValidation = (req, res, next) => {
 };
 
 const sanitizeUser = (user) => ({
-  id: user._id,
+  id: user.id || user._id,
   firstName: user.firstName,
   lastName: user.lastName,
   email: user.email,
@@ -30,7 +30,6 @@ const sanitizeUser = (user) => ({
   preferences: user.preferences
 });
 
-// Ro'yxatdan o'tish
 router.post(
   '/register',
   [
@@ -46,7 +45,7 @@ router.post(
     try {
       const { firstName, lastName, email, password, role, grade } = req.body;
 
-      const existingUser = await User.findOne({ email });
+      const existingUser = User.findOne({ email });
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -54,7 +53,7 @@ router.post(
         });
       }
 
-      const user = await User.create({
+      const user = User.create({
         firstName,
         lastName,
         email,
@@ -76,7 +75,6 @@ router.post(
   }
 );
 
-// Login
 router.post(
   '/login',
   [
@@ -88,9 +86,16 @@ router.post(
     try {
       const { email, password } = req.body;
 
-      const user = await User.findOne({ email }).select('+password');
+      const user = User.findOne({ email });
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Email yoki parol noto\'g\'ri'
+        });
+      }
 
-      if (!user || !(await user.comparePassword(password))) {
+      const passwordMatch = user.comparePassword(password);
+      if (!passwordMatch) {
         return res.status(401).json({
           success: false,
           message: 'Email yoki parol noto\'g\'ri'
@@ -104,8 +109,8 @@ router.post(
         });
       }
 
-      user.lastLogin = new Date();
-      await user.save({ validateBeforeSave: false });
+      user.lastLogin = new Date().toISOString();
+      user.save();
 
       const token = user.getSignedJwtToken();
 
@@ -120,23 +125,17 @@ router.post(
   }
 );
 
-// Profil
 router.get('/profile', protect, async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id)
-      .populate('subjects', 'name nameUz icon color')
-      .populate('children', 'firstName lastName email grade');
-
     res.json({
       success: true,
-      data: user
+      data: req.user
     });
   } catch (err) {
     next(err);
   }
 });
 
-// Me — joriy foydalanuvchi (qisqartirilgan)
 router.get('/me', protect, (req, res) => {
   res.json({
     success: true,

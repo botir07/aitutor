@@ -1,50 +1,42 @@
 const express = require('express');
 const router = express.Router();
-const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
-const Message = require('../models/Message');
+const Message = require('../lib/Message');
+const User = require('../lib/User');
 const { protect } = require('../middleware/auth');
 const requireDb = require('../middleware/requireDb');
 const { resolveOpenAICompatConfig } = require('../utils/aiProvider');
 
 router.use(requireDb);
 
-// Foydalanuvchi bilan suhbat tarixi (+ o'z ID bo'yicha AI mentor xabarlari)
 router.get('/:userId', protect, async (req, res, next) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.userId)) {
-      return res.status(400).json({ success: false, message: 'Foydalanuvchi ID noto\'g\'ri' });
-    }
+    const peerId = parseInt(req.params.userId);
+    const selfId = parseInt(req.user.id);
+    
+    const messages = Message.findWithOr([
+      { sender: selfId, receiver: peerId },
+      { sender: peerId, receiver: selfId }
+    ]);
 
-    const peerId = req.params.userId;
-    const selfId = req.user.id.toString();
-    const or = [
-      { sender: req.user.id, receiver: peerId },
-      { sender: peerId, receiver: req.user.id }
-    ];
-    if (peerId === selfId) {
-      or.push({
-        sender: req.user.id,
-        type: { $in: ['ai_chat', 'ai_response'] }
-      });
-    }
-
-    const messages = await Message.find({ $or: or })
-      .populate('sender', 'firstName lastName avatar')
-      .sort('createdAt')
-      .limit(100);
+    const result = messages.map(m => {
+      const sender = User.findById(m.sender);
+      return {
+        ...m,
+        sender: sender ? { firstName: sender.firstName, lastName: sender.lastName, avatar: sender.avatar } : { _id: m.sender }
+      };
+    });
 
     res.json({
       success: true,
-      count: messages.length,
-      data: messages
+      count: result.length,
+      data: result
     });
   } catch (err) {
     next(err);
   }
 });
 
-// AI mentorga xabar (GROQ_API_KEY yoki OPENAI_API_KEY bo'lsa LLM, bo'lmasa qoida javobi)
 router.post(
   '/ai',
   protect,
@@ -56,16 +48,16 @@ router.post(
         return res.status(400).json({ success: false, message: errors.array().map(e => e.msg).join(', ') });
       }
 
-      const userMsg = await Message.create({
-        sender: req.user.id,
+      const userMsg = Message.create({
+        sender: parseInt(req.user.id),
         content: req.body.content,
         type: 'ai_chat'
       });
 
       const reply = await generateAIReply(req.body.content);
 
-      const aiMsg = await Message.create({
-        sender: req.user.id,
+      const aiMsg = Message.create({
+        sender: parseInt(req.user.id),
         content: reply,
         type: 'ai_response'
       });
@@ -89,7 +81,7 @@ function ruleBasedReply(input) {
     return 'Salom! Bugun qanday mavzuda yordam kerak?';
   }
   if (text.includes('matematika') || text.includes('tenglama')) {
-    return 'Matematika bo\'yicha yordam beraman. Qaysi mavzu — algebra, geometriya, yoki boshqasi?';
+    return "Matematika bo'yicha yordam beraman. Qaysi mavzu — algebra, geometriya, yoki boshqasi?";
   }
   if (text.includes('fizika')) {
     return 'Fizika qiziqarli fan! Mexanika, elektr, optika — qaysi bo\'lim sizga kerak?';

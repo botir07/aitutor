@@ -1,7 +1,8 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
-const Assignment = require('../models/Assignment');
+const Assignment = require('../lib/Assignment');
+const Subject = require('../lib/Subject');
+const User = require('../lib/User');
 const { protect, authorize } = require('../middleware/auth');
 const requireDb = require('../middleware/requireDb');
 
@@ -21,34 +22,33 @@ function handleValidation(req, res, next) {
   next();
 }
 
-// O'quvchi: barcha vazifalar + o'z topshirig'i
 router.get('/', authorize('student', 'admin'), async (req, res, next) => {
   try {
-    const list = await Assignment.find({})
-      .sort('-dueDate')
-      .limit(100)
-      .populate('subject', 'name nameUz icon color')
-      .populate('teacher', 'firstName lastName email')
-      .lean();
-
-    const uid = req.user.id.toString();
+    const list = Assignment.find();
+    const uid = parseInt(req.user.id);
+    
     const data = list.map((a) => {
-      const sub = (a.submissions || []).find(s => String(s.student) === uid);
-      const { submissions, ...rest } = a;
+      const subject = Subject.findById(a.subject);
+      const teacher = User.findById(a.teacher);
+      const submissions = a.submissions || [];
+      const sub = submissions.find(s => parseInt(s.student) === uid);
+      
       return {
-        ...rest,
-        mySubmission: sub
-          ? {
-              content: sub.content,
-              submittedAt: sub.submittedAt,
-              score: sub.score,
-              feedback: sub.feedback,
-              gradedAt: sub.gradedAt
-            }
-          : null,
-        submissionCount: (a.submissions || []).length
+        ...a,
+        subject: subject ? { _id: subject._id, name: subject.name, nameUz: subject.nameUz, icon: subject.icon, color: subject.color } : null,
+        teacher: teacher ? { firstName: teacher.firstName, lastName: teacher.lastName, email: teacher.email } : null,
+        mySubmission: sub ? {
+          content: sub.content,
+          submittedAt: sub.submittedAt,
+          score: sub.score,
+          feedback: sub.feedback,
+          gradedAt: sub.gradedAt
+        } : null,
+        submissionCount: submissions.length
       };
     });
+
+    data.sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate));
 
     res.json({ success: true, count: data.length, data });
   } catch (err) {
@@ -58,25 +58,22 @@ router.get('/', authorize('student', 'admin'), async (req, res, next) => {
 
 router.get('/:id', authorize('student', 'admin'), async (req, res, next) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) {
-      return res.status(400).json({ success: false, message: 'ID noto\'g\'ri' });
-    }
-    const a = await Assignment.findById(req.params.id)
-      .populate('subject', 'name nameUz icon color')
-      .populate('teacher', 'firstName lastName email')
-      .lean();
-
+    const a = Assignment.findById(req.params.id);
     if (!a) {
       return res.status(404).json({ success: false, message: 'Vazifa topilmadi' });
     }
 
-    const uid = req.user.id.toString();
-    const sub = (a.submissions || []).find(s => String(s.student) === uid);
-    const { submissions, ...rest } = a;
+    const subject = Subject.findById(a.subject);
+    const teacher = User.findById(a.teacher);
+    const uid = parseInt(req.user.id);
+    const sub = (a.submissions || []).find(s => parseInt(s.student) === uid);
+
     res.json({
       success: true,
       data: {
-        ...rest,
+        ...a,
+        subject: subject ? { _id: subject._id, name: subject.name, nameUz: subject.nameUz, icon: subject.icon, color: subject.color } : null,
+        teacher: teacher ? { firstName: teacher.firstName, lastName: teacher.lastName, email: teacher.email } : null,
         mySubmission: sub || null
       }
     });
@@ -92,41 +89,40 @@ router.post(
   handleValidation,
   async (req, res, next) => {
     try {
-      if (!mongoose.isValidObjectId(req.params.id)) {
-        return res.status(400).json({ success: false, message: 'ID noto\'g\'ri' });
-      }
-
       if (req.user.role === 'admin') {
         return res.status(403).json({ success: false, message: 'Admin topshirib bo\'lmaydi' });
       }
 
-      const assignment = await Assignment.findById(req.params.id);
+      const assignment = Assignment.findById(req.params.id);
       if (!assignment) {
         return res.status(404).json({ success: false, message: 'Vazifa topilmadi' });
       }
 
-      const sub = assignment.submissions.find(s => s.student.toString() === req.user.id.toString());
-      if (!sub) {
-        assignment.submissions.push({
-          student: req.user.id,
+      const { getDb } = require('../lib/database');
+      const db = getDb();
+      const uid = parseInt(req.user.id);
+      const submissions = assignment.submissions || [];
+      const subIdx = submissions.findIndex(s => parseInt(s.student) === uid);
+      
+      const now = new Date().toISOString();
+      if (subIdx === -1) {
+        submissions.push({
+          student: uid,
           content: req.body.content,
-          submittedAt: new Date()
+          submittedAt: now
         });
       } else {
-        sub.content = req.body.content;
-        sub.submittedAt = new Date();
+        submissions[subIdx].content = req.body.content;
+        submissions[subIdx].submittedAt = now;
       }
 
-      await assignment.save();
-      const fresh = await Assignment.findById(assignment._id)
-        .populate('subject', 'name nameUz')
-        .lean();
-      const mine = (fresh.submissions || []).find(s => String(s.student) === req.user.id.toString());
+      const stmt = db.prepare('UPDATE assignments SET submissions = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?');
+      stmt.run(JSON.stringify(submissions), assignment.id);
 
       res.status(201).json({
         success: true,
         message: 'Topshirildi',
-        data: { mySubmission: mine }
+        data: { mySubmission: { content: req.body.content, submittedAt: now } }
       });
     } catch (err) {
       next(err);

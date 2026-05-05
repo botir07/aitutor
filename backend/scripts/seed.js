@@ -1,6 +1,6 @@
-const Subject = require('../models/Subject');
-const Quiz = require('../models/Quiz');
-const User = require('../models/User');
+const Subject = require('../lib/Subject');
+const Quiz = require('../lib/Quiz');
+const User = require('../lib/User');
 
 const SUBJECTS = [
   { name: 'Matematika', nameUz: 'Matematika', icon: '📐', color: '#4edea3', category: 'core', difficulty: 'intermediate' },
@@ -11,17 +11,19 @@ const SUBJECTS = [
 ];
 
 async function ensureSeedData() {
-  const subjectCount = await Subject.countDocuments();
+  const subjectCount = Subject.countDocuments();
   let subjects = [];
 
   if (subjectCount === 0) {
-    subjects = await Subject.insertMany(SUBJECTS);
+    for (const sub of SUBJECTS) {
+      subjects.push(Subject.create(sub));
+    }
     console.log(`🌱 Seed: ${subjects.length} ta fan qo'shildi`);
   } else {
-    subjects = await Subject.find();
+    subjects = Subject.find();
   }
 
-  const quizCount = await Quiz.countDocuments();
+  const quizCount = Quiz.countDocuments();
   if (quizCount === 0 && subjects.length > 0) {
     const math = subjects.find(s => s.name === 'Matematika');
     const physics = subjects.find(s => s.name === 'Fizika');
@@ -31,7 +33,7 @@ async function ensureSeedData() {
     if (math) quizzes.push({
       title: 'Kvadrat tenglamalar',
       description: 'Asosiy kvadrat tenglamalarni yechish',
-      subject: math._id,
+      subject: math.id,
       timeLimit: 20,
       difficulty: 'easy',
       questions: [
@@ -61,7 +63,7 @@ async function ensureSeedData() {
     if (physics) quizzes.push({
       title: 'Nyuton qonunlari',
       description: 'Klassik mexanika asoslari',
-      subject: physics._id,
+      subject: physics.id,
       timeLimit: 25,
       difficulty: 'medium',
       questions: [
@@ -80,13 +82,13 @@ async function ensureSeedData() {
 
     if (biology) quizzes.push({
       title: 'Hujayra tuzilishi',
-      description: 'Hayvon va o\'simlik hujayralari',
-      subject: biology._id,
+      description: "Hayvon va o'simlik hujayralari",
+      subject: biology.id,
       timeLimit: 20,
       difficulty: 'easy',
       questions: [
         {
-          text: 'Hujayraning energiya stansiyasi nima?',
+          text: "Hujayraning energiya stansiyasi nima?",
           points: 1,
           options: [
             { text: 'Ribosoma', isCorrect: false },
@@ -99,44 +101,35 @@ async function ensureSeedData() {
     });
 
     if (quizzes.length > 0) {
-      await Quiz.insertMany(quizzes);
+      for (const q of quizzes) {
+        Quiz.create(q);
+      }
       console.log(`🌱 Seed: ${quizzes.length} ta test qo'shildi`);
     }
   }
 
   if (!(await User.exists({ email: 'demo@maktab.uz' }))) {
-    await User.create({
+    User.create({
       firstName: 'Demo',
-      lastName: 'O\'quvchi',
+      lastName: "O'quvchi",
       email: 'demo@maktab.uz',
       password: 'demo1234',
       role: 'student',
       grade: '10-A'
     });
-    console.log('🌱 Seed: Demo o\'quvchi (demo@maktab.uz / demo1234)');
+    console.log("🌱 Seed: Demo o'quvchi (demo@maktab.uz / demo1234)");
   }
 
   if (!(await User.exists({ email: 'teacher@maktab.uz' }))) {
-    await User.create({
+    User.create({
       firstName: 'Demo',
-      lastName: 'O\'qituvchi',
+      lastName: "O'qituvchi",
       email: 'teacher@maktab.uz',
       password: 'teacher123',
       role: 'teacher'
     });
-    console.log('🌱 Seed: Demo o\'qituvchi (teacher@maktab.uz / teacher123)');
+    console.log("🌱 Seed: Demo o'qituvchi (teacher@maktab.uz / teacher123)");
   }
 }
 
 module.exports = { ensureSeedData };
-
-if (require.main === module) {
-  require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
-  const mongoose = require('mongoose');
-  (async () => {
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/maktab_ai');
-    await ensureSeedData();
-    await mongoose.connection.close();
-    process.exit(0);
-  })();
-}

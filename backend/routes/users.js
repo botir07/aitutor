@@ -1,7 +1,8 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const router = express.Router();
-const User = require('../models/User');
+const User = require('../lib/User');
+const { getDb } = require('../lib/database');
 const { protect, authorize } = require('../middleware/auth');
 const requireDb = require('../middleware/requireDb');
 
@@ -18,34 +19,35 @@ const handleValidation = (req, res, next) => {
   next();
 };
 
-// Barcha foydalanuvchilar (admin)
 router.get('/', protect, authorize('admin'), async (req, res, next) => {
   try {
+    const db = getDb();
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 200);
+    const offset = (page - 1) * limit;
 
-    const [users, total] = await Promise.all([
-      User.find()
-        .select('-password')
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .sort('-createdAt'),
-      User.countDocuments()
-    ]);
+    const users = db.prepare(`
+      SELECT id, firstName, lastName, email, role, avatar, grade, createdAt, updatedAt
+      FROM users
+      ORDER BY createdAt DESC
+      LIMIT ? OFFSET ?
+    `).all(limit, offset);
+
+    const totalResult = db.prepare('SELECT COUNT(*) as count FROM users').get();
+    const total = totalResult.count;
 
     res.json({
       success: true,
       count: users.length,
       total,
       page,
-      data: users
+      data: users.map(u => ({ ...u, _id: u.id.toString() }))
     });
   } catch (err) {
     next(err);
   }
 });
 
-// Profilni yangilash — faqat ruxsat etilgan maydonlar
 router.put(
   '/profile',
   protect,
@@ -61,21 +63,36 @@ router.put(
   handleValidation,
   async (req, res, next) => {
     try {
-      const allowed = ['firstName', 'lastName', 'phone', 'address', 'grade'];
-      const updates = {};
+      const db = getDb();
+      const uid = parseInt(req.user.id);
+      const updates = [];
+      const values = [];
 
-      for (const key of allowed) {
-        if (req.body[key] !== undefined) updates[key] = req.body[key];
+      const fields = ['firstName', 'lastName', 'phone', 'address', 'grade'];
+      for (const key of fields) {
+        if (req.body[key] !== undefined) {
+          updates.push(`${key} = ?`);
+          values.push(req.body[key]);
+        }
       }
-      if (req.body.theme !== undefined) updates['preferences.theme'] = req.body.theme;
-      if (req.body.language !== undefined) updates['preferences.language'] = req.body.language;
 
-      const user = await User.findByIdAndUpdate(
-        req.user.id,
-        updates,
-        { new: true, runValidators: true }
-      ).select('-password');
+      if (req.body.theme !== undefined || req.body.language !== undefined) {
+        const current = User.findById(uid);
+        if (current) {
+          const prefs = current.preferences || {};
+          if (req.body.theme !== undefined) prefs.theme = req.body.theme;
+          if (req.body.language !== undefined) prefs.language = req.body.language;
+          updates.push('preferences = ?');
+          values.push(JSON.stringify(prefs));
+        }
+      }
 
+      if (updates.length > 0) {
+        values.push(uid);
+        db.prepare(`UPDATE users SET ${updates.join(', ')}, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`).run(...values);
+      }
+
+      const user = User.findById(uid);
       res.json({
         success: true,
         data: user
@@ -86,7 +103,6 @@ router.put(
   }
 );
 
-// Parolni o'zgartirish
 router.put(
   '/password',
   protect,
@@ -97,13 +113,21 @@ router.put(
   handleValidation,
   async (req, res, next) => {
     try {
-      const user = await User.findById(req.user.id).select('+password');
-      const ok = await user.comparePassword(req.body.currentPassword);
+      const user = User.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'Foydalanuvchi topilmadi' });
+      }
+
+      const ok = user.comparePassword(req.body.currentPassword);
       if (!ok) {
         return res.status(401).json({ success: false, message: 'Joriy parol noto\'g\'ri' });
       }
-      user.password = req.body.newPassword;
-      await user.save();
+
+      const bcrypt = require('bcryptjs');
+      const hashedPassword = bcrypt.hashSync(req.body.newPassword, 12);
+      const db = getDb();
+      db.prepare('UPDATE users SET password = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?').run(hashedPassword, user.id);
+
       res.json({ success: true, message: 'Parol muvaffaqiyatli o\'zgartirildi' });
     } catch (err) {
       next(err);
