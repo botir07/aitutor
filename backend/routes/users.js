@@ -118,7 +118,7 @@ router.put(
         return res.status(404).json({ success: false, message: 'Foydalanuvchi topilmadi' });
       }
 
-      const ok = user.comparePassword(req.body.currentPassword);
+      const ok = await user.comparePassword(req.body.currentPassword);
       if (!ok) {
         return res.status(401).json({ success: false, message: 'Joriy parol noto\'g\'ri' });
       }

@@ -165,6 +165,39 @@ function initializeTables() {
 
     CREATE INDEX IF NOT EXISTS idx_rooms_code ON rooms(code);
     CREATE INDEX IF NOT EXISTS idx_rooms_teacherId ON rooms(teacherId);
+
+    CREATE TABLE IF NOT EXISTS quiz_attempts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      quizId INTEGER NOT NULL,
+      studentId INTEGER NOT NULL,
+      attemptNumber INTEGER NOT NULL DEFAULT 1,
+      score REAL,
+      grade REAL,
+      passed INTEGER,
+      completedAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (quizId) REFERENCES quizzes(id),
+      FOREIGN KEY (studentId) REFERENCES users(id),
+      UNIQUE(quizId, studentId, attemptNumber)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_quiz_attempts_quiz ON quiz_attempts(quizId);
+    CREATE INDEX IF NOT EXISTS idx_quiz_attempts_student ON quiz_attempts(studentId);
+
+    CREATE TABLE IF NOT EXISTS attendance (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      studentId INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      status TEXT DEFAULT 'present',
+      teacherId INTEGER,
+      notes TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (studentId) REFERENCES users(id),
+      FOREIGN KEY (teacherId) REFERENCES users(id),
+      UNIQUE(studentId, date)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_attendance_student ON attendance(studentId);
+    CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance(date);
   `);
 }
 

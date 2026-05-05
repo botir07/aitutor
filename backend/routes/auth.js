@@ -94,7 +94,7 @@ router.post(
         });
       }
 
-      const passwordMatch = user.comparePassword(password);
+      const passwordMatch = await user.comparePassword(password);
       if (!passwordMatch) {
         return res.status(401).json({
           success: false,

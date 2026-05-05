@@ -3,6 +3,7 @@ const router = express.Router();
 const Quiz = require('../lib/Quiz');
 const Grade = require('../lib/Grade');
 const Subject = require('../lib/Subject');
+const { getDb } = require('../lib/database');
 const { protect, authorize } = require('../middleware/auth');
 const requireDb = require('../middleware/requireDb');
 
@@ -71,6 +72,21 @@ router.post('/:id/submit', protect, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Test topilmadi' });
     }
 
+    const db = getDb();
+    const studentId = parseInt(req.user.id);
+    const quizId = quiz.id;
+
+    const attemptCount = db.prepare(
+      'SELECT COUNT(*) as count FROM quiz_attempts WHERE quizId = ? AND studentId = ?'
+    ).get(quizId, studentId).count;
+
+    if (attemptCount >= (quiz.maxAttempts || 3)) {
+      return res.status(403).json({
+        success: false,
+        message: `Siz ${quiz.maxAttempts || 3} marta urinishlimitiga yetdingiz. Bu testni qayta topshirib bo'lmaydi.`
+      });
+    }
+
     const answers = Array.isArray(req.body.answers) ? req.body.answers : [];
     let earned = 0;
 
@@ -90,11 +106,18 @@ router.post('/:id/submit', protect, async (req, res, next) => {
       percentage >= 90 ? 5 :
       percentage >= 70 ? 4 :
       percentage >= 50 ? 3 : 2;
+    const passed = percentage >= (quiz.passingScore || 70);
+
+    const nextAttempt = attemptCount + 1;
+    db.prepare(`
+      INSERT INTO quiz_attempts (quizId, studentId, attemptNumber, score, grade, passed)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(quizId, studentId, nextAttempt, percentage, grade, passed ? 1 : 0);
 
     Grade.create({
-      student: parseInt(req.user.id),
+      student: studentId,
       subject: quiz.subject,
-      quiz: quiz.id,
+      quiz: quizId,
       type: 'quiz',
       score: percentage,
       grade,
@@ -108,7 +131,9 @@ router.post('/:id/submit', protect, async (req, res, next) => {
         grade,
         earnedPoints: earned,
         totalPoints,
-        passed: percentage >= (quiz.passingScore || 70)
+        passed,
+        attemptNumber: nextAttempt,
+        attemptsRemaining: Math.max(0, (quiz.maxAttempts || 3) - nextAttempt)
       }
     });
   } catch (err) {
