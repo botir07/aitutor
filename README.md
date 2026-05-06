@@ -1,6 +1,6 @@
 # Maktab AI
 
-O‘zbekiston maktablari uchun yagona backend + statik frontend: fanlar, testlar, baholar, AI chat, **o‘qituvchi paneli** (davomat, vazifalar, qo‘lda baholash).
+O‘zbekiston maktablari uchun yangilanish: fanlar, testlar, baholar, AI chat, **o‘qituvchi paneli** (davomat, vazifalar, qo‘lda baholash).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
