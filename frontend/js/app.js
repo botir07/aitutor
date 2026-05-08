@@ -514,6 +514,8 @@ const Pages = {
       u = Auth.getUser() || {};
     }
 
+    const canEditPersonal = ['teacher', 'admin'].includes(u.role);
+
     main.innerHTML = `
       <div class="slide-in space-y-6 max-w-3xl">
         <h1 class="text-3xl font-bold text-white mb-6 flex items-center gap-3">
@@ -537,19 +539,21 @@ const Pages = {
 
           <form id="profile-form" class="space-y-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              ${field('Ism', 'firstName', u.firstName)}
-              ${field('Familiya', 'lastName', u.lastName)}
+              ${field('Ism', 'firstName', u.firstName, 'text', !canEditPersonal)}
+              ${field('Familiya', 'lastName', u.lastName, 'text', !canEditPersonal)}
               ${field('Email', 'email', u.email, 'email', true)}
-              ${field('Sinf', 'grade', u.grade || '')}
+              ${field('Sinf', 'grade', u.grade || '', 'text', !canEditPersonal)}
               ${field('Telefon', 'phone', u.phone || '')}
               ${field('Manzil', 'address', u.address || '')}
             </div>
+            ${canEditPersonal ? `
             <div class="flex items-center gap-3 pt-2">
               <button type="submit" class="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-semibold flex items-center gap-2">
                 ${icon('save', 'icon-md')} Saqlash
               </button>
               <span id="profile-status" class="text-sm"></span>
             </div>
+            ` : `<p class="text-slate-500 text-sm pt-2">Shaxsiy ma'lumotlarni o'zgartirish uchun o'qituvchi yoki admin bilan bog'laning.</p>`}
           </form>
         </div>
 

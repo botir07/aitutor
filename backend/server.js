@@ -69,10 +69,19 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 
 app.get('/api/health', (req, res) => {
+  let dbStatus = 'disconnected';
+  try {
+    const db = getDb();
+    db.prepare('SELECT 1').get();
+    dbStatus = 'connected';
+  } catch (e) {
+    dbStatus = 'error: ' + e.message;
+  }
   res.json({
     status: 'OK',
     time: new Date(),
-    db: 'connected'
+    db: dbStatus,
+    env: process.env.NODE_ENV || 'development'
   });
 });
 

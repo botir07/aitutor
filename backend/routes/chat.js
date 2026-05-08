@@ -107,10 +107,7 @@ async function generateAIReply(input) {
         messages: [
           {
             role: 'system',
-            content:
-              'Siz O\'zbekiston maktab o\'quvchilariga yordam beruvchi AI mentorsiz. ' +
-              'Javoblarni o\'zbek tilida, qisqa va tushunarli yozing. ' +
-              'Agar savol fan bo\'yicha bo\'lmasa, xushmuomalalik bilan yo\'naltiring.'
+            content: process.env.AI_SYSTEM_PROMPT || 'Siz O\'zbekiston maktab o\'quvchilariga yordam beruvchi AI mentorsiz. Javoblarni o\'zbek tilida, qisqa va tushunarli yozing.'
           },
           { role: 'user', content: String(input).slice(0, 4000) }
         ],

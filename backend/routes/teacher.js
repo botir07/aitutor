@@ -48,9 +48,10 @@ router.get('/dashboard', async (req, res, next) => {
     const studentCount = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'student' AND isActive = 1").get().count;
     
     const today = startOfUtcDay(new Date()).toISOString().slice(0, 10);
-    const teacherFilter = req.user.role === 'admin' ? '' : `AND teacher = ${parseInt(req.user.id)}`;
-    const todayAttendance = db.prepare(`SELECT * FROM grades WHERE date LIKE ? ${teacherFilter}`).all(today + '%');
-    const presentToday = 0;
+    const presentToday = db.prepare(`
+      SELECT COUNT(*) as count FROM attendance 
+      WHERE date = ? AND status IN ('present', 'excused')
+    `).get(today).count;
 
     const attendanceRateToday = studentCount > 0
       ? Math.round((presentToday / studentCount) * 100)
@@ -62,17 +63,21 @@ router.get('/dashboard', async (req, res, next) => {
         : { type: 'baholash' }
     ).slice(0, 8);
 
+    const markedToday = db.prepare(`
+      SELECT COUNT(DISTINCT studentId) as count FROM attendance WHERE date = ?
+    `).get(today).count;
+
     res.json({
       success: true,
       data: {
         studentCount,
         today: {
           date: today,
-          marked: 0,
+          marked: markedToday,
           presentOrExcused: presentToday,
           attendanceRatePercent: attendanceRateToday
         },
-        weekAttendanceCount: 0,
+        weekAttendanceCount: markedToday,
         recentGrades
       }
     });
@@ -127,10 +132,32 @@ router.post(
         return res.status(400).json({ success: false, message: 'Sana formati noto\'g\'ri' });
       }
 
+      const db = getDb();
+      const dateStr = day.toISOString().slice(0, 10);
+      const teacherId = parseInt(req.user.id);
+      const insertStmt = db.prepare(`
+        INSERT OR REPLACE INTO attendance (studentId, date, status, teacherId, notes)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+
+      const saveMany = db.transaction((records) => {
+        for (const r of records) {
+          insertStmt.run(
+            parseInt(r.studentId),
+            dateStr,
+            r.status || 'present',
+            teacherId,
+            r.notes || null
+          );
+        }
+      });
+
+      saveMany(req.body.records);
+
       res.status(201).json({
         success: true,
-        message: 'Davomat saqlandi (SQLite)',
-        data: { date: day.toISOString().slice(0, 10), count: req.body.records.length, teacherMarked: 0 }
+        message: 'Davomat saqlandi',
+        data: { date: dateStr, count: req.body.records.length, teacherMarked: req.body.records.length }
       });
     } catch (err) {
       next(err);
@@ -140,7 +167,27 @@ router.post(
 
 router.get('/attendance', async (req, res, next) => {
   try {
-    res.json({ success: true, count: 0, data: [] });
+    const db = getDb();
+    const date = req.query.date;
+    const studentId = req.query.studentId;
+    
+    let sql = 'SELECT a.*, u.firstName, u.lastName FROM attendance a JOIN users u ON a.studentId = u.id WHERE 1=1';
+    const params = [];
+    
+    if (date) {
+      sql += ' AND a.date = ?';
+      params.push(date);
+    }
+    if (studentId) {
+      sql += ' AND a.studentId = ?';
+      params.push(parseInt(studentId));
+    }
+    
+    sql += ' ORDER BY a.date DESC, u.lastName';
+    
+    const records = db.prepare(sql).all(...params);
+    
+    res.json({ success: true, count: records.length, data: records });
   } catch (err) {
     next(err);
   }
@@ -148,7 +195,36 @@ router.get('/attendance', async (req, res, next) => {
 
 router.get('/attendance/stats', async (req, res, next) => {
   try {
-    res.json({ success: true, count: 0, data: [] });
+    const db = getDb();
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 365);
+    const endDate = new Date().toISOString().slice(0, 10);
+    const startDate = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+
+    const stats = db.prepare(`
+      SELECT status, COUNT(*) as count 
+      FROM attendance 
+      WHERE date BETWEEN ? AND ?
+      GROUP BY status
+    `).all(startDate, endDate);
+
+    const total = stats.reduce((sum, s) => sum + s.count, 0);
+    const present = stats.find(s => s.status === 'present')?.count || 0;
+    const absent = stats.find(s => s.status === 'absent')?.count || 0;
+    const excused = stats.find(s => s.status === 'excused')?.count || 0;
+    const late = stats.find(s => s.status === 'late')?.count || 0;
+
+    const result = {
+      totalRecords: total,
+      present,
+      absent,
+      excused,
+      late,
+      presentPercent: total > 0 ? Math.round((present / total) * 100) : 0,
+      absentPercent: total > 0 ? Math.round((absent / total) * 100) : 0,
+      period: { start: startDate, end: endDate }
+    };
+
+    res.json({ success: true, count: stats.length, data: result });
   } catch (err) {
     next(err);
   }
@@ -329,12 +405,16 @@ async function generateQuizDraftWithAI({ subjectName, topic, numQuestions, diffi
   const n = Math.min(Math.max(parseInt(numQuestions, 10) || 5, 3), 15);
   const diff = ['easy', 'medium', 'hard'].includes(difficulty) ? difficulty : 'medium';
 
-  const system = `Siz O'zbekiston maktabi uchun test tuzuvchi ekspertsiz. Faqat bitta JSON obyekt qaytaring, boshqa matn yoki markdown yo'q.
+  const system = `Siz O'zbekiston maktab dasturi bo'yicha test tuzuvchi ekspertiz. Faqat bitta JSON obyekt qaytaring, boshqa matn yoki markdown yo'q.
 Format:
 {"title":"string","description":"string","questions":[{"text":"string","difficulty":"easy|medium|hard","points":1,"explanation":"string","options":[{"text":"string","isCorrect":boolean}]}]}
-Qoidalar: har bir savolda aynan 4 ta variant; faqat bittasida "isCorrect": true. Savollar o'zbek tilida.`;
+Qoidalar: 
+- Har bir savolda aynan 4 ta variant; faqat bittasida "isCorrect": true
+- Savollar O'zbek tilida
+- Maktab 5-11 sinflar uchun mos
+- O'quv dasturiga mos mavzular`;
 
-  const userMsg = `Fan: "${subjectName}". Mavzu: "${topic}". Savollar soni: ${n}. Qiyinlik: ${diff}.`;
+  const userMsg = `Fan: "${subjectName}". Mavzu: "${topic}". Savollar soni: ${n}. Qiyinlik darajasi: ${diff}.`;
 
   const body = {
     model,

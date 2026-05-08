@@ -63,7 +63,7 @@ class Grade {
       quiz: grade.quiz,
       type: grade.type,
       score: grade.score,
-      grade: grade.grade,
+      gradeNum: grade.grade,
       maxScore: grade.maxScore,
       feedback: grade.feedback,
       comment: grade.comment,
