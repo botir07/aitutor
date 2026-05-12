@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html class="dark" lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo Talaba — Maktab AI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #0b1326; color: #e2e8f0; }
+    .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(51, 65, 85, 0.5); }
+    .glass-panel { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(20px); border: 1px solid #1E293B; }
+    .material-symbols-outlined { vertical-align: middle; font-size: 20px; }
+    .icon-sm { font-size: 16px; }
+    .icon-md { font-size: 24px; }
+    .icon-xl { font-size: 32px; }
+    .icon-2xl { font-size: 48px; }
+    .gradient-text { background: linear-gradient(135deg, #4edea3 0%, #22d3ee 50%, #a78bfa 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .bg-grid { background-image: linear-gradient(rgba(78, 222, 163, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(78, 222, 163, 0.03) 1px, transparent 1px); background-size: 40px 40px; }
+    .card-hover { transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s; }
+    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); border-color: rgba(78, 222, 163, 0.4); }
+    .loader { border: 3px solid rgba(78, 222, 163, 0.2); border-top-color: #4edea3; border-radius: 50%; width: 36px; height: 36px; animation: tp-spin 0.75s linear infinite; }
+    @keyframes tp-spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .pulse { animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-10px); } }
+    .float-anim { animation: float 3s ease-in-out infinite; }
+    .slide-in { animation: slideIn 0.4s ease-out; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="min-h-screen bg-grid">
+  <header class="fixed top-0 left-0 right-0 z-50 glass border-b border-slate-800/50">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-3">
+        <span class="text-2xl">🚀</span>
+        <span class="text-xl font-bold gradient-text">Maktab AI</span>
+      </a>
+      <div class="flex items-center gap-3">
+        <span class="px-3 py-1.5 rounded-full bg-violet-500/20 text-violet-400 text-xs font-semibold border border-violet-500/30">DEMO</span>
+        <span class="text-sm text-slate-400">Ali Valiyev · 10-A</span>
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white font-bold text-lg">A</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="pt-20 pb-10 px-4 max-w-7xl mx-auto">
+    <div id="demo-content">
+      <div class="flex justify-center py-32"><div class="loader"></div></div>
+    </div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    async function loadDemo() {
+      const content = document.getElementById('demo-content');
+      content.innerHTML = `
+        <div class="slide-in space-y-8">
+          <div class="text-center py-8">
+            <div class="inline-flex items-center justify-center w-24 h-24 rounded-3xl bg-gradient-to-br from-emerald-400/20 to-blue-500/20 mb-6 float-anim">
+              <span class="material-symbols-outlined icon-2xl text-emerald-400">school</span>
+            </div>
+            <h1 class="text-4xl font-extrabold text-white mb-3">Xush kelibsiz, <span class="gradient-text">Ali!</span></h1>
+            <p class="text-slate-400 text-lg max-w-xl mx-auto">Bu demo sahifa. Siz bu yerda o'quvchi sifatida barcha imkoniyatlarni sinab ko'rishingiz mumkin.</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            ${statCard('star', '4.8', "O'rtacha baho", 'emerald')}
+            ${statCard('quiz', '12', 'Topshirilgan testlar', 'blue')}
+            ${statCard('library_books', '24', 'Fanlar soni', 'amber')}
+            ${statCard('local_fire_department', '7', 'Ketma-ket kun', 'orange')}
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="glass rounded-2xl p-6 card-hover">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                  <span class="material-symbols-outlined icon-md text-emerald-400">history</span>
+                  Oxirgi baholar
+                </h2>
+                <span class="text-sm text-emerald-400 cursor-pointer hover:underline">Hammasi →</span>
+              </div>
+              <div class="space-y-3">
+                ${gradeItem('Matematika', '5', '85%', '2 kun oldin', '#4edea3')}
+                ${gradeItem('Fizika', '4', '78%', '3 kun oldin', '#3b82f6')}
+                ${gradeItem('Biologiya', '5', '92%', '5 kun oldin', '#84cc16')}
+                ${gradeItem('Tarix', '4', '72%', 'hafta oldin', '#8b5cf6')}
+              </div>
+            </div>
+
+            <div class="glass rounded-2xl p-6 card-hover">
+              <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                  <span class="material-symbols-outlined icon-md text-amber-400">auto_awesome</span>
+                  Tavsiya etilgan testlar
+                </h2>
+                <span class="text-sm text-emerald-400 cursor-pointer hover:underline">Hammasi →</span>
+              </div>
+              <div class="space-y-3">
+                ${quizCard('Kvadrat tenglamalar', 'Matematika', 20, 8, '#4edea3')}
+                ${quizCard("Nyuton qonunlari", 'Fizika', 25, 5, '#3b82f6')}
+                ${quizCard('Hujayra tuzilishi', 'Biologiya', 20, 3, '#84cc16')}
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            ${featureCard('menu_book', 'Fanlar', '24 ta fan bo\'yicha darslar', 'emerald')}
+            ${featureCard('psychology', 'AI Mentor', 'AI yordamida o\'rganish', 'violet')}
+            ${featureCard('assignment', 'Vazifalar', 'Uy vazifalarini topshirish', 'amber')}
+          </div>
+
+          <div class="glass rounded-2xl p-8 text-center border border-emerald-500/20">
+            <span class="material-symbols-outlined icon-2xl text-emerald-400 mb-4">celebration</span>
+            <h3 class="text-2xl font-bold text-white mb-2">Demo rejimi faol</h3>
+            <p class="text-slate-400 mb-6">Barcha ma\'lumotlar namunalik. Ro\'yxatdan o\'tib, haqiqiy ma\'lumotlarni saqlashingiz mumkin.</p>
+            <div class="flex gap-3 justify-center flex-wrap">
+              <a href="/#/" class="px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-semibold flex items-center gap-2 transition">
+                <span class="material-symbols-outlined icon-sm">login</span>
+                Tizimga kirish
+              </a>
+              <a href="/teacher.html" class="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-semibold flex items-center gap-2 transition">
+                <span class="material-symbols-outlined icon-sm">school</span>
+                O'qituvchi paneli
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function statCard(icon, value, label, color) {
+      const colors = {
+        emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+        blue: { bg: 'bg-blue-500/10', text: 'text-blue-400' },
+        amber: { bg: 'bg-amber-500/10', text: 'text-amber-400' },
+        orange: { bg: 'bg-orange-500/10', text: 'text-orange-400' }
+      };
+      const c = colors[color];
+      return `<div class="glass rounded-2xl p-6 card-hover">
+        <div class="w-12 h-12 rounded-xl ${c.bg} flex items-center justify-center mb-4">
+          <span class="material-symbols-outlined icon-lg ${c.text}">${icon}</span>
+        </div>
+        <h3 class="text-3xl font-bold text-white">${value}</h3>
+        <p class="text-slate-400 text-sm mt-1">${label}</p>
+      </div>`;
+    }
+
+    function gradeItem(subject, grade, percent, time, color) {
+      const gradeColors = {
+        '5': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+        '4': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+        '3': 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+      };
+      const gc = gradeColors[grade] || gradeColors['4'];
+      return `<div class="flex justify-between items-center p-3 bg-slate-800/40 rounded-xl">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:${color}22; color:${color}">
+            <span class="material-symbols-outlined icon-sm">menu_book</span>
+          </div>
+          <div>
+            <p class="text-white font-semibold">${subject}</p>
+            <p class="text-xs text-slate-400">${time} · ${percent}</p>
+          </div>
+        </div>
+        <span class="px-3 py-1 rounded-lg border font-bold text-lg ${gc}">${grade}</span>
+      </div>`;
+    }
+
+    function quizCard(title, subject, time, questions, color) {
+      return `<div class="p-4 bg-slate-800/40 rounded-xl flex items-center gap-4 cursor-pointer hover:bg-slate-800/60 transition">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" style="background:${color}22; color:${color}">
+          <span class="material-symbols-outlined icon-md">quiz</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-white font-semibold truncate">${title}</p>
+          <p class="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+            <span>${subject}</span>
+            <span>·</span>
+            <span>${questions} savol</span>
+            <span>·</span>
+            <span>${time} daq</span>
+          </p>
+        </div>
+        <span class="material-symbols-outlined icon-md text-slate-500">chevron_right</span>
+      </div>`;
+    }
+
+    function featureCard(icon, title, desc, color) {
+      const colors = {
+        emerald: 'text-emerald-400 bg-emerald-500/10',
+        violet: 'text-violet-400 bg-violet-500/10',
+        amber: 'text-amber-400 bg-amber-500/10'
+      };
+      return `<div class="glass rounded-2xl p-6 card-hover text-center">
+        <div class="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center ${colors[color]}">
+          <span class="material-symbols-outlined icon-xl">${icon}</span>
+        </div>
+        <h3 class="text-lg font-bold text-white mb-1">${title}</h3>
+        <p class="text-sm text-slate-400">${desc}</p>
+      </div>`;
+    }
+
+    loadDemo();
+  </script>
+</body>
+</html>

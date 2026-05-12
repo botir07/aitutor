@@ -140,6 +140,18 @@ async function ensureSeedData() {
     }
   }
 
+  if (!(await User.exists({ email: 'student@demo.com' }))) {
+    User.create({
+      firstName: 'Ali',
+      lastName: "Valiyev",
+      email: 'student@demo.com',
+      password: 'demo1234',
+      role: 'student',
+      grade: '10-A'
+    });
+    console.log("🌱 Seed: Demo talaba (student@demo.com / demo1234)");
+  }
+
   if (!(await User.exists({ email: 'demo@maktab.uz' }))) {
     User.create({
       firstName: 'Demo',

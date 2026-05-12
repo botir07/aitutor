@@ -9,9 +9,20 @@ const AuthUI = {
             <p class="text-slate-400 text-sm">Premium Ta'lim Platformasi</p>
           </div>
 
-          <div class="flex gap-2 mb-6 bg-slate-800/50 p-1 rounded-xl">
+          <div class="flex gap-2 mb-6">
             <button id="tab-login" class="flex-1 py-2 rounded-lg bg-emerald-500 text-white font-semibold transition">Kirish</button>
             <button id="tab-register" class="flex-1 py-2 rounded-lg text-slate-400 font-semibold transition">Ro'yxatdan o'tish</button>
+          </div>
+
+          <button id="btn-demo" type="button" class="w-full mb-4 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 text-white font-bold flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-xl">play_circle</span>
+            Demo talaba sifatida kirish
+          </button>
+
+          <div class="flex items-center gap-3 mb-4">
+            <div class="flex-1 h-px bg-slate-700"></div>
+            <span class="text-xs text-slate-500">yoki</span>
+            <div class="flex-1 h-px bg-slate-700"></div>
           </div>
 
           <form id="login-form" class="space-y-4">
@@ -88,6 +99,28 @@ const AuthUI = {
 
     loginForm.addEventListener('submit', AuthUI.handleLogin);
     registerForm.addEventListener('submit', AuthUI.handleRegister);
+
+    document.getElementById('btn-demo').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-demo');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loader" style="width:20px;height:20px;border-width:2px"></span> Yuklanmoqda...';
+      await AuthUI.handleDemo();
+      btn.disabled = false;
+    });
+  },
+
+  async handleDemo() {
+    try {
+      const res = await API.login('demo@maktab.uz', 'demo1234');
+      Auth.setToken(res.token);
+      Auth.setUser(res.user);
+      window.location.href = '/demo';
+    } catch (err) {
+      const status = document.getElementById('auth-status') || document.createElement('p');
+      status.textContent = 'Demo foydalanuvchi topilmadi. Iltimos, ro\'yxatdan o\'ting.';
+      status.className = 'text-sm text-center text-amber-400 mt-2';
+      document.querySelector('#login-form')?.parentNode?.appendChild(status);
+    }
   },
 
   async handleLogin(e) {
@@ -104,7 +137,7 @@ const AuthUI = {
         window.location.href = '/teacher.html';
         return;
       }
-      window.location.reload();
+      window.location.href = '/demo';
     } catch (err) {
       status.textContent = err.message;
       status.className = 'text-sm text-center text-red-400';
@@ -125,7 +158,7 @@ const AuthUI = {
         window.location.href = '/teacher.html';
         return;
       }
-      window.location.reload();
+      window.location.href = '/demo';
     } catch (err) {
       status.textContent = err.message;
       status.className = 'text-sm text-center text-red-400';

@@ -97,6 +97,10 @@ app.use('/api/rooms', roomRoutes);
 
 app.use(express.static(path.join(__dirname, '../frontend')));
 
+app.get('/demo', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/demo.html'));
+});
+
 app.get(/^(?!\/api).*/, (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
