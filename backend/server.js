@@ -1,12 +1,11 @@
-require('dotenv').config();
-
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-const path = require('path');
 const os = require('os');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -83,6 +82,13 @@ app.get('/api/health', (req, res) => {
     db: dbStatus,
     env: process.env.NODE_ENV || 'development'
   });
+});
+
+app.use((req, res, next) => {
+  if (req.method === 'POST' && ['/send-otp', '/verify-otp'].includes(req.path)) {
+    return authRoutes(req, res, next);
+  }
+  return next();
 });
 
 app.use('/api/auth', authRoutes);

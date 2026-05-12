@@ -74,12 +74,23 @@ async function http(method, path, { token, body } = {}) {
   // ============================================================
   console.log(COLOR.cyan('\n3. Auth flow'));
   let token, userId;
+  const testEmail = `aziz.test.${Date.now()}@maktab.uz`;
   {
+    const otpResponse = await http('POST', '/send-otp', {
+      body: { email: testEmail }
+    });
+    assert('POST /send-otp -> 200', otpResponse.status === 200, JSON.stringify(otpResponse.data));
+
+    const verifyResponse = await http('POST', '/verify-otp', {
+      body: { email: testEmail, otp: otpResponse.data && otpResponse.data.otp }
+    });
+    assert('POST /verify-otp -> 200', verifyResponse.status === 200, JSON.stringify(verifyResponse.data));
+
     const r = await http('POST', '/api/auth/register', {
       body: {
         firstName: 'Aziz',
         lastName: 'Test',
-        email: 'aziz.test@maktab.uz',
+        email: testEmail,
         password: 'testpass123',
         role: 'student',
         grade: '10-A'
@@ -94,7 +105,7 @@ async function http(method, path, { token, body } = {}) {
   }
   {
     const r = await http('POST', '/api/auth/register', {
-      body: { firstName: 'A', lastName: 'B', email: 'aziz.test@maktab.uz', password: 'x123456' }
+      body: { firstName: 'A', lastName: 'B', email: testEmail, password: 'x123456' }
     });
     assert('Duplicate email → 400', r.status === 400);
   }
@@ -106,21 +117,21 @@ async function http(method, path, { token, body } = {}) {
   }
   {
     const r = await http('POST', '/api/auth/login', {
-      body: { email: 'aziz.test@maktab.uz', password: 'testpass123' }
+      body: { email: testEmail, password: 'testpass123' }
     });
     assert('POST /login → 200', r.status === 200);
     assert('  token qaytarildi', !!(r.data && r.data.token));
   }
   {
     const r = await http('POST', '/api/auth/login', {
-      body: { email: 'aziz.test@maktab.uz', password: 'wrong' }
+      body: { email: testEmail, password: 'wrong' }
     });
     assert('Noto\'g\'ri parol → 401', r.status === 401);
   }
   {
     const r = await http('GET', '/api/auth/me', { token });
     assert('GET /me with token → 200', r.status === 200);
-    assert('  email mos keladi',       r.data && r.data.data && r.data.data.email === 'aziz.test@maktab.uz');
+    assert('  email mos keladi',       r.data && r.data.data && r.data.data.email === testEmail);
   }
   {
     const r = await http('GET', '/api/auth/me');
@@ -243,7 +254,7 @@ async function http(method, path, { token, body } = {}) {
   }
   {
     const r = await http('POST', '/api/auth/login', {
-      body: { email: 'aziz.test@maktab.uz', password: 'newpass123' }
+      body: { email: testEmail, password: 'newpass123' }
     });
     assert('Yangi parol bilan login → 200', r.status === 200);
     token = r.data.token;

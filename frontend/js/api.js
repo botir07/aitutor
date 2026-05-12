@@ -68,6 +68,10 @@ const API = {
   me:       () => request('/api/auth/me'),
   profile:  () => request('/api/auth/profile'),
 
+  // OTP
+  sendOTP:    (email) => request('/send-otp', { method: 'POST', body: { email } }),
+  verifyOTP:  (email, otp) => request('/verify-otp', { method: 'POST', body: { email, otp } }),
+
   // Users
   updateProfile:  (data) => request('/api/users/profile', { method: 'PUT', body: data }),
   changePassword: (currentPassword, newPassword) =>
